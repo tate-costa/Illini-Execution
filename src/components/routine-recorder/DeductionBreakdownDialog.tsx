@@ -38,6 +38,7 @@ interface DeductionBreakdownDialogProps {
   onOpenChange: (isOpen: boolean) => void;
   allUsersData: AppData;
   selectedUserId: string | undefined;
+  selectedUserName: string | undefined;
 }
 
 type UserScope = 'currentUser' | 'allUsers';
@@ -47,6 +48,7 @@ export function DeductionBreakdownDialog({
   onOpenChange,
   allUsersData,
   selectedUserId,
+  selectedUserName,
 }: DeductionBreakdownDialogProps) {
   const [selectedEvent, setSelectedEvent] = useState(EVENTS[0]);
   const [userScope, setUserScope] = useState<UserScope>('currentUser');
@@ -156,7 +158,7 @@ export function DeductionBreakdownDialog({
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="currentUser" id="r1" />
-                  <Label htmlFor="r1">Current User</Label>
+                  <Label htmlFor="r1">{selectedUserName || 'Current User'}</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="allUsers" id="r2" />

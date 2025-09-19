@@ -25,6 +25,10 @@ export function RoutineRecorder() {
     if (!selectedUserId) return null;
     return data[selectedUserId] || initialUserData;
   }, [selectedUserId, data]);
+  
+  const selectedUserName = useMemo(() => {
+    return USERS.find(user => user.id === selectedUserId)?.name;
+  }, [selectedUserId]);
 
   const hasRoutines = useMemo(() => {
     if (!currentUserData) return false;
@@ -149,6 +153,7 @@ export function RoutineRecorder() {
             onOpenChange={setIsBreakdownOpen}
             allUsersData={data}
             selectedUserId={selectedUserId}
+            selectedUserName={selectedUserName}
           />
         </>
       )}
