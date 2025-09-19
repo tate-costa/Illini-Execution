@@ -88,10 +88,10 @@ export function SubmitRoutineDialog({
     name: "skills",
   });
   
-  useEffect(() => {
-    if (selectedEvent) {
-      const routineSkills = userRoutines[selectedEvent] || [];
-      const skillCount = selectedEvent === 'VT' ? 2 : 8;
+  const resetRoutineToOriginal = (event: string | undefined) => {
+    if (event) {
+      const routineSkills = userRoutines[event] || [];
+      const skillCount = event === 'VT' ? 2 : 8;
       const initialSkills = routineSkills.slice(0, skillCount);
 
       const newSkills = initialSkills.map((skill, index) => ({
@@ -105,7 +105,23 @@ export function SubmitRoutineDialog({
     } else {
         replace([]);
     }
+  }
+  
+  useEffect(() => {
+    resetRoutineToOriginal(selectedEvent);
   }, [selectedEvent, userRoutines, replace]);
+  
+  useEffect(() => {
+    if (isOpen) {
+      // If an event is already selected, reset the routine. Otherwise, wait for user to select an event.
+      if (selectedEvent) {
+        resetRoutineToOriginal(selectedEvent);
+      }
+    } else {
+      // Reset event selection when dialog closes to ensure a fresh state next time
+      setSelectedEvent(undefined);
+    }
+  }, [isOpen]);
 
   const handleSwapSkill = (index: number, newSkill: { name: string, value: number | '' }) => {
     const currentSkill = fields[index];
@@ -153,17 +169,17 @@ export function SubmitRoutineDialog({
     
     // Filter to only include skills where a deduction was entered.
     const skillsToSave = values.skills
-      .filter(s => s.deduction !== '' && s.deduction !== undefined && s.deduction !== null && s.deduction !== 'N/A')
+      .filter(s => s.deduction !== '' && s.deduction !== 'N/A')
       .map(({id, ...rest}) => ({
           ...rest,
+          value: Number(rest.value),
           deduction: Number(rest.deduction)
       })) as SubmissionSkill[];
 
     // A routine is complete if it has the required number of skills and every displayed skill has a deduction.
     const requiredSkillCount = selectedEvent === 'VT' ? 2 : 8;
-    const hasAllSkills = values.skills.length >= requiredSkillCount;
-    const allDeductionsFilled = values.skills.every(s => s.deduction !== '' && s.deduction !== undefined && s.deduction !== null && s.deduction !== 'N/A');
-    const isComplete = hasAllSkills && allDeductionsFilled;
+    const allDeductionsFilled = values.skills.every(s => s.deduction !== '' && s.deduction !== 'N/A');
+    const isComplete = fields.length >= requiredSkillCount && allDeductionsFilled;
       
     const submission = {
         event: selectedEvent,
@@ -173,7 +189,6 @@ export function SubmitRoutineDialog({
     };
     onSave(submission);
     form.reset();
-    setSelectedEvent(undefined);
     setOptimizations({});
   };
 
@@ -228,7 +243,7 @@ export function SubmitRoutineDialog({
                           placeholder="Deduction"
                           value={value === 'N/A' ? '' : value}
                           onFocus={(e) => {
-                            if (e.target.value === 'N/A') {
+                            if (e.target.value === 'N/A' || value === 'N/A') {
                                 form.setValue(`skills.${index}.deduction`, '');
                             }
                           }}
@@ -293,5 +308,3 @@ export function SubmitRoutineDialog({
     </Dialog>
   );
 }
-
-    
