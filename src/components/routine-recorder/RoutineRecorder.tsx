@@ -101,7 +101,7 @@ export function RoutineRecorder() {
         </CardContent>
       </Card>
       
-      {currentUserData && currentUserData.submissions.length > 0 && (
+      {selectedUserId && currentUserData && currentUserData.submissions.length > 0 && (
           <div className="max-w-4xl mx-auto mt-8">
             <SubmissionsTable submissions={currentUserData.submissions} />
           </div>
