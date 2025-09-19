@@ -22,7 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { EVENTS } from '@/lib/constants';
 import { format } from 'date-fns';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
-import { ChevronDown, Trash2, Check } from 'lucide-react';
+import { ChevronDown, Trash2, Check, X } from 'lucide-react';
 import { Button } from '../ui/button';
 import {
   AlertDialog,
@@ -114,7 +114,11 @@ export function SubmissionsTable({ submissions, onDelete }: SubmissionsTableProp
                           </Badge>
                         </TableCell>
                         <TableCell className="text-center">
-                          {sub.isComplete && <Check className="h-5 w-5 text-green-500" />}
+                          {sub.isComplete ? (
+                            <Check className="h-5 w-5 text-green-500" />
+                          ) : (
+                            <X className="h-5 w-5 text-red-500" />
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           <CollapsibleTrigger asChild>
