@@ -1,3 +1,5 @@
+
+      
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -28,6 +30,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   LabelList,
+  Legend,
 } from 'recharts';
 import { EVENTS } from '@/lib/constants';
 import type { AppData } from '@/lib/types';
@@ -54,53 +57,108 @@ export function DeductionBreakdownDialog({
   const [userScope, setUserScope] = useState<UserScope>('currentUser');
   const [useTimeFilter, setUseTimeFilter] = useState(true);
   const [timeFilterDays, setTimeFilterDays] = useState(30);
+  const [isComparisonMode, setIsComparisonMode] = useState(false);
 
 
-  const averageDeductions = useMemo(() => {
-    const skillDeductions: Record<string, number[]> = {};
-
-    const userIdsToProcess =
-      userScope === 'currentUser' && selectedUserId
-        ? [selectedUserId]
-        : Object.keys(allUsersData);
-        
+  const chartData = useMemo(() => {
     const cutoffDate = useTimeFilter ? subDays(new Date(), timeFilterDays) : null;
 
-    for (const userId of userIdsToProcess) {
-      const userData = allUsersData[userId];
-      if (!userData) continue;
+    if (isComparisonMode) {
+      if (!selectedUserId) return [];
+      
+      const currentUserSkillDeductions: Record<string, number[]> = {};
+      const otherUsersSkillDeductions: Record<string, number[]> = {};
 
-      let eventSubmissions = userData.submissions.filter(
-        sub => sub.event === selectedEvent
-      );
-
-      if (cutoffDate) {
-        eventSubmissions = eventSubmissions.filter(sub => isAfter(new Date(sub.timestamp), cutoffDate));
-      }
-
-      for (const submission of eventSubmissions) {
-        for (const skill of submission.skills) {
-          if (typeof skill.deduction === 'number') {
-            if (!skillDeductions[skill.name]) {
-              skillDeductions[skill.name] = [];
+      // Process current user's data
+      const currentUserData = allUsersData[selectedUserId];
+      if (currentUserData) {
+        let eventSubmissions = currentUserData.submissions.filter(sub => sub.event === selectedEvent);
+        if (cutoffDate) {
+          eventSubmissions = eventSubmissions.filter(sub => isAfter(new Date(sub.timestamp), cutoffDate));
+        }
+        for (const submission of eventSubmissions) {
+          for (const skill of submission.skills) {
+            if (typeof skill.deduction === 'number') {
+              if (!currentUserSkillDeductions[skill.name]) currentUserSkillDeductions[skill.name] = [];
+              currentUserSkillDeductions[skill.name].push(skill.deduction);
             }
-            skillDeductions[skill.name].push(skill.deduction);
           }
         }
       }
+
+      // Process other users' data
+      for (const userId in allUsersData) {
+        if (userId === selectedUserId) continue;
+        const userData = allUsersData[userId];
+        let eventSubmissions = userData.submissions.filter(sub => sub.event === selectedEvent);
+        if (cutoffDate) {
+          eventSubmissions = eventSubmissions.filter(sub => isAfter(new Date(sub.timestamp), cutoffDate));
+        }
+        for (const submission of eventSubmissions) {
+          for (const skill of submission.skills) {
+            if (typeof skill.deduction === 'number') {
+              if (!otherUsersSkillDeductions[skill.name]) otherUsersSkillDeductions[skill.name] = [];
+              otherUsersSkillDeductions[skill.name].push(skill.deduction);
+            }
+          }
+        }
+      }
+      
+      const allSkillNames = new Set([
+        ...Object.keys(currentUserSkillDeductions),
+        ...Object.keys(otherUsersSkillDeductions)
+      ]);
+
+      const comparisonAverages = Array.from(allSkillNames).map(name => {
+        const currentUserDeductions = currentUserSkillDeductions[name] || [];
+        const otherUsersDeductions = otherUsersSkillDeductions[name] || [];
+
+        const currentUserSum = currentUserDeductions.reduce((a, b) => a + b, 0);
+        const currentUserAverage = currentUserDeductions.length > 0 ? parseFloat((currentUserSum / currentUserDeductions.length).toFixed(2)) : null;
+
+        const otherUsersSum = otherUsersDeductions.reduce((a, b) => a + b, 0);
+        const otherUsersAverage = otherUsersDeductions.length > 0 ? parseFloat((otherUsersSum / otherUsersDeductions.length).toFixed(2)) : null;
+        
+        return { name, currentUserAverage, otherUsersAverage };
+      });
+
+      return comparisonAverages.sort((a, b) => (b.currentUserAverage || 0) - (a.currentUserAverage || 0));
+
+    } else {
+      // Original average calculation logic
+      const skillDeductions: Record<string, number[]> = {};
+      const userIdsToProcess =
+        userScope === 'currentUser' && selectedUserId
+          ? [selectedUserId]
+          : Object.keys(allUsersData);
+          
+      for (const userId of userIdsToProcess) {
+        const userData = allUsersData[userId];
+        if (!userData) continue;
+
+        let eventSubmissions = userData.submissions.filter(sub => sub.event === selectedEvent);
+        if (cutoffDate) {
+          eventSubmissions = eventSubmissions.filter(sub => isAfter(new Date(sub.timestamp), cutoffDate));
+        }
+        for (const submission of eventSubmissions) {
+          for (const skill of submission.skills) {
+            if (typeof skill.deduction === 'number') {
+              if (!skillDeductions[skill.name]) skillDeductions[skill.name] = [];
+              skillDeductions[skill.name].push(skill.deduction);
+            }
+          }
+        }
+      }
+
+      const averages = Object.entries(skillDeductions).map(([name, deductions]) => {
+        const sum = deductions.reduce((a, b) => a + b, 0);
+        const average = sum / deductions.length;
+        return { name, averageDeduction: parseFloat(average.toFixed(2)) };
+      });
+
+      return averages.sort((a, b) => b.averageDeduction - a.averageDeduction);
     }
-
-    const averages = Object.entries(skillDeductions).map(([name, deductions]) => {
-      const sum = deductions.reduce((a, b) => a + b, 0);
-      const average = sum / deductions.length;
-      return {
-        name,
-        averageDeduction: parseFloat(average.toFixed(2)),
-      };
-    });
-
-    return averages.sort((a, b) => b.averageDeduction - a.averageDeduction);
-  }, [selectedEvent, userScope, allUsersData, selectedUserId, useTimeFilter, timeFilterDays]);
+  }, [selectedEvent, userScope, allUsersData, selectedUserId, useTimeFilter, timeFilterDays, isComparisonMode]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -150,30 +208,44 @@ export function DeductionBreakdownDialog({
                  </div>
                )}
             </div>
-            <div className="space-y-2">
-              <Label>Data Scope</Label>
-              <RadioGroup
-                value={userScope}
-                onValueChange={(value: string) => setUserScope(value as UserScope)}
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="currentUser" id="r1" />
-                  <Label htmlFor="r1">{selectedUserName || 'Current User'}</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="allUsers" id="r2" />
-                  <Label htmlFor="r2">All Users</Label>
-                </div>
-              </RadioGroup>
+             <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="comparison-mode-switch">Skill Comparison Mode</Label>
+                <Switch
+                  id="comparison-mode-switch"
+                  checked={isComparisonMode}
+                  onCheckedChange={setIsComparisonMode}
+                  disabled={!selectedUserId}
+                />
+              </div>
             </div>
+            
+            {!isComparisonMode && (
+              <div className="space-y-2">
+                <Label>Data Scope</Label>
+                <RadioGroup
+                  value={userScope}
+                  onValueChange={(value: string) => setUserScope(value as UserScope)}
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="currentUser" id="r1" />
+                    <Label htmlFor="r1">{selectedUserName || 'Current User'}</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="allUsers" id="r2" />
+                    <Label htmlFor="r2">All Users</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+            )}
           </div>
           <div className="md:col-span-3 h-96">
-            {averageDeductions.length > 0 ? (
+            {chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
-                  data={averageDeductions}
+                  data={chartData}
                   layout="vertical"
-                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" />
@@ -191,9 +263,17 @@ export function DeductionBreakdownDialog({
                     }}
                     cursor={{ fill: 'hsl(var(--muted))' }}
                   />
-                  <Bar dataKey="averageDeduction" fill="hsl(var(--primary))">
-                    <LabelList dataKey="averageDeduction" position="right" style={{ fill: 'hsl(var(--foreground))' }} />
-                  </Bar>
+                  {isComparisonMode && <Legend />}
+                  {isComparisonMode ? (
+                    <>
+                      <Bar dataKey="currentUserAverage" name={selectedUserName || 'Current User'} fill="hsl(var(--primary))" />
+                      <Bar dataKey="otherUsersAverage" name="Other Users" fill="hsl(var(--accent))" />
+                    </>
+                  ) : (
+                    <Bar dataKey="averageDeduction" fill="hsl(var(--primary))">
+                      <LabelList dataKey="averageDeduction" position="right" style={{ fill: 'hsl(var(--foreground))' }} />
+                    </Bar>
+                  )}
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -207,3 +287,6 @@ export function DeductionBreakdownDialog({
     </Dialog>
   );
 }
+
+
+    
