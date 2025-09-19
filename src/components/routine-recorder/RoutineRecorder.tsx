@@ -10,6 +10,7 @@ import { EditRoutinesDialog } from './EditRoutinesDialog';
 import { SubmitRoutineDialog } from './SubmitRoutineDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { SubmissionsTable } from './SubmissionsTable';
+import { DeductionBreakdownDialog } from './DeductionBreakdownDialog';
 
 const initialUserData: UserData = { routines: {}, submissions: [] };
 
@@ -18,6 +19,7 @@ export function RoutineRecorder() {
   const [selectedUserId, setSelectedUserId] = useState<string | undefined>();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
+  const [isBreakdownOpen, setIsBreakdownOpen] = useState(false);
 
   const currentUserData = useMemo(() => {
     if (!selectedUserId) return null;
@@ -93,7 +95,7 @@ export function RoutineRecorder() {
           />
 
           {selectedUserId && (
-            <div className="flex flex-col sm:flex-row gap-4 pt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
               <Button
                 onClick={() => setIsEditOpen(true)}
                 className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
@@ -106,6 +108,13 @@ export function RoutineRecorder() {
                 className="w-full"
               >
                 Submit Routine
+              </Button>
+               <Button
+                onClick={() => setIsBreakdownOpen(true)}
+                variant="outline"
+                className="w-full"
+              >
+                See Breakdown
               </Button>
             </div>
           )}
@@ -134,6 +143,12 @@ export function RoutineRecorder() {
             onOpenChange={setIsSubmitOpen}
             userRoutines={currentUserData.routines}
             onSave={handleSaveSubmission}
+          />
+           <DeductionBreakdownDialog
+            isOpen={isBreakdownOpen}
+            onOpenChange={setIsBreakdownOpen}
+            allUsersData={data}
+            selectedUserId={selectedUserId}
           />
         </>
       )}
