@@ -150,16 +150,16 @@ export function SubmitRoutineDialog({
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     if (!selectedEvent) return;
     
-    // A routine is complete if it has the required number of skills and every skill has a deduction.
+    // Filter to only include skills where a deduction was entered.
+    const skillsToSave = values.skills
+      .filter(s => s.deduction !== '' && s.deduction !== undefined && s.deduction !== null)
+      .map(({id, ...rest}) => rest) as SubmissionSkill[];
+
+    // A routine is complete if it has the required number of skills and every displayed skill has a deduction.
     const requiredSkillCount = selectedEvent === 'VT' ? 2 : 8;
     const hasAllSkills = values.skills.length >= requiredSkillCount;
-    const allDeductionsFilled = values.skills.every(s => s.deduction !== '' && s.deduction !== undefined);
+    const allDeductionsFilled = values.skills.every(s => s.deduction !== '' && s.deduction !== undefined && s.deduction !== null);
     const isComplete = hasAllSkills && allDeductionsFilled;
-
-    // Only save the skills that have a deduction entered.
-    const skillsToSave = values.skills
-      .filter(s => s.deduction !== '' && s.deduction !== undefined)
-      .map(({id, ...rest}) => rest) as SubmissionSkill[];
       
     const submission = {
         event: selectedEvent,
