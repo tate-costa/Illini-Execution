@@ -17,7 +17,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { EVENTS } from '@/lib/constants';
 import { format } from 'date-fns';
@@ -95,7 +94,6 @@ export function SubmissionsTable({ submissions, onDelete }: SubmissionsTableProp
               <TableRow>
                 <TableHead className="w-[100px]">Event</TableHead>
                 <TableHead>Date</TableHead>
-                <TableHead>Status</TableHead>
                 <TableHead>Routine</TableHead>
                 <TableHead className="w-24 text-right">Actions</TableHead>
               </TableRow>
@@ -108,11 +106,6 @@ export function SubmissionsTable({ submissions, onDelete }: SubmissionsTableProp
                       <TableRow>
                         <TableCell className="font-medium">{sub.event}</TableCell>
                         <TableCell>{format(new Date(sub.timestamp), "PPP p")}</TableCell>
-                        <TableCell>
-                          <Badge variant={sub.isComplete ? 'default' : 'destructive'} className={sub.isComplete ? 'bg-green-500' : 'bg-red-500'}>
-                            {sub.isComplete ? 'Complete' : 'Incomplete'}
-                          </Badge>
-                        </TableCell>
                         <TableCell className="text-center">
                           {sub.isComplete ? (
                             <Check className="h-5 w-5 text-green-500" />
@@ -153,7 +146,7 @@ export function SubmissionsTable({ submissions, onDelete }: SubmissionsTableProp
                       </TableRow>
                       <CollapsibleContent asChild>
                          <tr className="bg-muted/50">
-                            <TableCell colSpan={5} className="p-4">
+                            <TableCell colSpan={4} className="p-4">
                               <p className="font-semibold mb-2">Skills Submitted:</p>
                               <div className="overflow-x-auto">
                                 <Table>
@@ -183,7 +176,7 @@ export function SubmissionsTable({ submissions, onDelete }: SubmissionsTableProp
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={4} className="h-24 text-center">
                     No submissions found.
                   </TableCell>
                 </TableRow>
