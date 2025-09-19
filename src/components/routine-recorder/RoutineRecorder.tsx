@@ -1,0 +1,158 @@
+'use client';
+
+import { useState, useMemo } from 'react';
+import useLocalStorage from '@/hooks/use-local-storage';
+import { USERS } from '@/lib/constants';
+import type { AppData, Submission, UserData, UserRoutines } from '@/lib/types';
+import { UserSelector } from './UserSelector';
+import { Button } from '@/components/ui/button';
+import { EditRoutinesDialog } from './EditRoutinesDialog';
+import { SubmitRoutineDialog } from './SubmitRoutineDialog';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Badge } from '../ui/badge';
+import { ScrollArea } from '../ui/scroll-area';
+import { Separator } from '../ui/separator';
+import { format } from 'date-fns';
+
+const initialUserData: UserData = { routines: {}, submissions: [] };
+
+export function RoutineRecorder() {
+  const [data, setData] = useLocalStorage<AppData>('routine-recorder-data', {});
+  const [selectedUserId, setSelectedUserId] = useState<string | undefined>();
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isSubmitOpen, setIsSubmitOpen] = useState(false);
+
+  const currentUserData = useMemo(() => {
+    if (!selectedUserId) return null;
+    return data[selectedUserId] || initialUserData;
+  }, [selectedUserId, data]);
+
+  const hasRoutines = useMemo(() => {
+    if (!currentUserData) return false;
+    return Object.keys(currentUserData.routines).length > 0;
+  }, [currentUserData]);
+
+  const handleUserChange = (userId: string) => {
+    setSelectedUserId(userId);
+  };
+
+  const handleSaveRoutine = (event: string, routine: UserRoutines) => {
+    if (!selectedUserId) return;
+    const newData = { ...data };
+    if (!newData[selectedUserId]) {
+      newData[selectedUserId] = { ...initialUserData };
+    }
+    newData[selectedUserId].routines = routine;
+    setData(newData);
+    setIsEditOpen(false);
+  };
+
+  const handleSaveSubmission = (submission: Omit<Submission, 'id'>) => {
+    if (!selectedUserId) return;
+    const newSubmission: Submission = {
+        ...submission,
+        id: new Date().toISOString() + Math.random(),
+    };
+    const newData = { ...data };
+    if (!newData[selectedUserId]) {
+      newData[selectedUserId] = { ...initialUserData };
+    }
+    newData[selectedUserId].submissions.unshift(newSubmission); // Add to beginning of array
+    setData(newData);
+    setIsSubmitOpen(false);
+  };
+
+  return (
+    <div className="container mx-auto p-4 md:p-8">
+      <header className="text-center mb-8">
+        <h1 className="text-4xl font-headline font-bold text-primary">
+          RoutineRecorder
+        </h1>
+        <p className="text-muted-foreground mt-2">
+          Your personal gymnastics routine tracker and optimizer.
+        </p>
+      </header>
+      
+      <Card className="max-w-4xl mx-auto shadow-lg">
+        <CardHeader>
+          <CardTitle>Get Started</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <UserSelector
+            users={USERS}
+            selectedUser={selectedUserId}
+            onUserChange={handleUserChange}
+          />
+
+          {selectedUserId && (
+            <div className="flex flex-col sm:flex-row gap-4 pt-4">
+              <Button
+                onClick={() => setIsEditOpen(true)}
+                className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
+              >
+                Edit My Routines
+              </Button>
+              <Button
+                onClick={() => setIsSubmitOpen(true)}
+                disabled={!hasRoutines}
+                className="w-full"
+              >
+                Submit Routine
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
+      {currentUserData && currentUserData.submissions.length > 0 && (
+          <Card className="max-w-4xl mx-auto shadow-lg mt-8">
+            <CardHeader>
+              <CardTitle>Recent Submissions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-96">
+                <div className="space-y-4">
+                  {currentUserData.submissions.map((sub, index) => (
+                    <div key={sub.id}>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-semibold text-lg">{sub.event} Routine</p>
+                          <p className="text-sm text-muted-foreground">{format(new Date(sub.timestamp), "PPP p")}</p>
+                        </div>
+                        <Badge variant={sub.isComplete ? 'default' : 'destructive'} className={sub.isComplete ? 'bg-green-500' : 'bg-red-500'}>
+                          {sub.isComplete ? 'Complete' : 'Incomplete'}
+                        </Badge>
+                      </div>
+                      <ul className="mt-2 list-disc list-inside text-sm">
+                        {sub.skills.map(skill => (
+                           <li key={skill.name}>{skill.name}: Value {skill.value}, Deduction {skill.deduction}</li>
+                        ))}
+                      </ul>
+                      {index < currentUserData.submissions.length - 1 && <Separator className="mt-4" />}
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+      )}
+
+      {currentUserData && (
+        <>
+          <EditRoutinesDialog
+            isOpen={isEditOpen}
+            onOpenChange={setIsEditOpen}
+            userRoutines={currentUserData.routines}
+            onSave={handleSaveRoutine}
+          />
+          <SubmitRoutineDialog
+            isOpen={isSubmitOpen}
+            onOpenChange={setIsSubmitOpen}
+            userRoutines={currentUserData.routines}
+            onSave={handleSaveSubmission}
+          />
+        </>
+      )}
+    </div>
+  );
+}
