@@ -68,7 +68,7 @@ export function SubmissionsTable({ submissions, onDelete }: SubmissionsTableProp
     return filtered.sort((a, b) => {
       const dateA = new Date(a.timestamp).getTime();
       const dateB = new Date(b.timestamp).getTime();
-      return sortOrder === 'newest' ? dateB - dateA : dateA - b;
+      return sortOrder === 'newest' ? dateB - dateA : dateA - b.timestamp;
     });
   }, [submissions, eventFilter, sortOrder, useTimeFilter, timeFilterDays]);
 
