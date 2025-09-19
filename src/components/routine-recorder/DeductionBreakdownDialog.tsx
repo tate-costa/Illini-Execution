@@ -130,8 +130,10 @@ export function DeductionBreakdownDialog({
         
         for (const userId in allUsersData) {
             const userData = allUsersData[userId];
-            const userName = userData.userName || `User ${userId.slice(-4)}`;
+            const userName = userData.userName;
             
+            if (!userName) continue;
+
             let eventSubmissions = userData.submissions.filter(sub => sub.event === selectedEvent);
             if (cutoffDate) {
                 eventSubmissions = eventSubmissions.filter(sub => isAfter(new Date(sub.timestamp), cutoffDate));
