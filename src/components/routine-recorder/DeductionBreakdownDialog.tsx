@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -28,7 +29,6 @@ import {
   Tooltip,
   ResponsiveContainer,
   LabelList,
-  Legend,
 } from 'recharts';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EVENTS } from '@/lib/constants';
@@ -59,6 +59,7 @@ export function DeductionBreakdownDialog({
   const [useTimeFilter, setUseTimeFilter] = useState(true);
   const [timeFilterDays, setTimeFilterDays] = useState(30);
   const [selectedSkill, setSelectedSkill] = useState<string | undefined>();
+  const [compareDismounts, setCompareDismounts] = useState(false);
 
   const cutoffDate = useMemo(() => {
     return useTimeFilter ? subDays(new Date(), timeFilterDays) : null;
@@ -124,14 +125,11 @@ export function DeductionBreakdownDialog({
 
       return averages.sort((a, b) => b.averageDeduction - a.averageDeduction);
     } else { // Comparison mode
-        if (!selectedSkill) return [];
-        
         const userDeductions: Record<string, {name: string, deductions: number[]}> = {};
-        
+
         for (const userId in allUsersData) {
             const userData = allUsersData[userId];
             const userName = userData.userName;
-            
             if (!userName) continue;
 
             let eventSubmissions = userData.submissions.filter(sub => sub.event === selectedEvent);
@@ -140,10 +138,22 @@ export function DeductionBreakdownDialog({
             }
 
             for (const submission of eventSubmissions) {
-                for (const skill of submission.skills) {
-                    if (skill.name === selectedSkill && typeof skill.deduction === 'number') {
-                        if (!userDeductions[userId]) userDeductions[userId] = { name: userName, deductions: [] };
-                        userDeductions[userId].deductions.push(skill.deduction);
+                if (compareDismounts) {
+                    if (submission.skills.length > 0) {
+                        // Assume last skill is the dismount
+                        const dismount = submission.skills[submission.skills.length - 1];
+                        if (typeof dismount.deduction === 'number') {
+                            if (!userDeductions[userId]) userDeductions[userId] = { name: userName, deductions: [] };
+                            userDeductions[userId].deductions.push(dismount.deduction);
+                        }
+                    }
+                } else {
+                    if (!selectedSkill) continue;
+                    for (const skill of submission.skills) {
+                        if (skill.name === selectedSkill && typeof skill.deduction === 'number') {
+                            if (!userDeductions[userId]) userDeductions[userId] = { name: userName, deductions: [] };
+                            userDeductions[userId].deductions.push(skill.deduction);
+                        }
                     }
                 }
             }
@@ -157,7 +167,7 @@ export function DeductionBreakdownDialog({
 
         return comparisonAverages.sort((a, b) => b.averageDeduction - a.averageDeduction);
     }
-  }, [viewMode, selectedEvent, userScope, allUsersData, selectedUserId, cutoffDate, selectedSkill]);
+  }, [viewMode, selectedEvent, userScope, allUsersData, selectedUserId, cutoffDate, selectedSkill, compareDismounts]);
   
   // Effect to reset skill selection when event changes
   useEffect(() => {
@@ -297,20 +307,30 @@ export function DeductionBreakdownDialog({
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="skill-filter-comparison">Skill</Label>
-                           <Select value={selectedSkill} onValueChange={setSelectedSkill} disabled={allSkillsInEvent.length === 0}>
-                            <SelectTrigger id="skill-filter-comparison">
-                              <SelectValue placeholder="Select a skill" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {allSkillsInEvent.map(skill => (
-                                <SelectItem key={skill} value={skill}>
-                                  {skill}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                        <div className="space-y-4">
+                           <div className="flex items-center justify-between">
+                             <Label htmlFor="dismount-switch">Compare Dismounts</Label>
+                             <Switch
+                               id="dismount-switch"
+                               checked={compareDismounts}
+                               onCheckedChange={setCompareDismounts}
+                             />
+                           </div>
+                           <div className="space-y-2">
+                              <Label htmlFor="skill-filter-comparison" className={cn(compareDismounts && "text-muted-foreground")}>Skill</Label>
+                               <Select value={selectedSkill} onValueChange={setSelectedSkill} disabled={allSkillsInEvent.length === 0 || compareDismounts}>
+                                <SelectTrigger id="skill-filter-comparison">
+                                  <SelectValue placeholder="Select a skill" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {allSkillsInEvent.map(skill => (
+                                    <SelectItem key={skill} value={skill}>
+                                      {skill}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
                         </div>
                         <div className="space-y-4">
                            <div className="flex items-center justify-between">
@@ -367,7 +387,7 @@ export function DeductionBreakdownDialog({
                         </ResponsiveContainer>
                         ) : (
                         <div className="flex items-center justify-center h-full text-muted-foreground">
-                            {selectedSkill ? 'No data available for this skill.' : 'Please select a skill to compare.'}
+                            {selectedSkill || compareDismounts ? 'No data available for this selection.' : 'Please select a skill to compare.'}
                         </div>
                         )}
                     </div>
@@ -378,3 +398,4 @@ export function DeductionBreakdownDialog({
     </Dialog>
   );
 }
+
