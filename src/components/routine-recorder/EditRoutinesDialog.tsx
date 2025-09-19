@@ -22,9 +22,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { EVENTS, getSkillNamesForEvent } from '@/lib/constants';
-import type { UserRoutines, Routine } from '@/lib/types';
+import { EVENTS } from '@/lib/constants';
+import type { UserRoutines, Skill } from '@/lib/types';
 import { ScrollArea } from '../ui/scroll-area';
+import { PlusCircle, Trash2 } from 'lucide-react';
 
 interface EditRoutinesDialogProps {
   isOpen: boolean;
@@ -34,8 +35,8 @@ interface EditRoutinesDialogProps {
 }
 
 const skillSchema = z.object({
-  name: z.string(),
-  value: z.coerce.number().min(0, "Value must be positive").optional().or(z.literal('')),
+  name: z.string().min(1, 'Skill name is required.'),
+  value: z.coerce.number().min(0, 'Value must be positive').optional().or(z.literal('')),
 });
 
 const formSchema = z.object({
@@ -57,26 +58,33 @@ export function EditRoutinesDialog({
     },
   });
 
-  const { fields, replace } = useFieldArray({
+  const { fields, replace, append, remove } = useFieldArray({
     control: form.control,
     name: "skills",
   });
   
   useEffect(() => {
-    const skillNames = getSkillNamesForEvent(selectedEvent);
     const existingSkills = userRoutines[selectedEvent] || [];
-
-    const newSkills = skillNames.map(name => {
-      const existing = existingSkills.find(s => s.name === name);
-      return { name, value: existing ? existing.value : '' };
-    });
-    replace(newSkills);
+    if (existingSkills.length > 0) {
+      replace(existingSkills);
+    } else {
+      const initialSkillCount = selectedEvent === 'VT' ? 2 : 8;
+      const defaultSkills = Array.from({ length: initialSkillCount }, (_, i) => ({
+        name: `Skill ${i + 1}`,
+        value: '',
+      }));
+      replace(defaultSkills);
+    }
   }, [selectedEvent, userRoutines, replace]);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     const updatedRoutines = { ...userRoutines };
-    updatedRoutines[selectedEvent] = values.skills.filter(skill => skill.value !== '');
+    updatedRoutines[selectedEvent] = values.skills.filter(skill => skill.name && skill.value !== '');
     onSave(selectedEvent, updatedRoutines);
+  };
+  
+  const addSkill = () => {
+    append({ name: '', value: '' });
   };
 
   return (
@@ -85,7 +93,7 @@ export function EditRoutinesDialog({
         <DialogHeader>
           <DialogTitle>Edit Routines</DialogTitle>
           <DialogDescription>
-            Select an event and enter the values for each skill.
+            Select an event, name your skills, and enter their values.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -108,26 +116,43 @@ export function EditRoutinesDialog({
           <ScrollArea className="h-72 pr-4">
             <div className="space-y-4">
               {fields.map((field, index) => (
-                <div key={field.id} className="grid grid-cols-2 gap-4 items-center">
-                  <Label htmlFor={`skills.${index}.value`}>{field.name}</Label>
+                <div key={field.id} className="grid grid-cols-[1fr_auto_auto] gap-2 items-start">
                   <Controller
                     control={form.control}
-                    name={`skills.${index}.value`}
-                    render={({ field, fieldState }) => (
+                    name={`skills.${index}.name`}
+                    render={({ field: nameField, fieldState }) => (
                       <div>
                         <Input
-                          id={`skills.${index}.value`}
-                          type="number"
-                          step="0.1"
-                          placeholder="Value"
-                          {...field}
+                          placeholder={`Skill ${index + 1} Name`}
+                          {...nameField}
                         />
                         {fieldState.error && <p className="text-destructive text-sm mt-1">{fieldState.error.message}</p>}
                       </div>
                     )}
                   />
+                  <Controller
+                    control={form.control}
+                    name={`skills.${index}.value`}
+                    render={({ field: valueField, fieldState }) => (
+                       <div className="w-24">
+                        <Input
+                          type="number"
+                          step="0.1"
+                          placeholder="Value"
+                          {...valueField}
+                        />
+                        {fieldState.error && <p className="text-destructive text-sm mt-1">{fieldState.error.message}</p>}
+                      </div>
+                    )}
+                  />
+                  <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="text-destructive hover:bg-destructive/10">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               ))}
+               <Button type="button" variant="outline" onClick={addSkill} className="w-full mt-4">
+                <PlusCircle className="mr-2 h-4 w-4" /> Add Skill
+              </Button>
             </div>
           </ScrollArea>
           

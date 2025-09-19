@@ -22,8 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { getSubmissionSkillNamesForEvent } from '@/lib/constants';
-import type { UserRoutines } from '@/lib/types';
+import type { UserRoutines, SubmissionSkill } from '@/lib/types';
 import { ScrollArea } from '../ui/scroll-area';
 import { getOptimizedDeductions } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
@@ -72,13 +71,12 @@ export function SubmitRoutineDialog({
   
   useEffect(() => {
     if (selectedEvent) {
-      const skillNames = getSubmissionSkillNamesForEvent(selectedEvent);
       const routineSkills = userRoutines[selectedEvent] || [];
-
-      const newSkills = skillNames.map(name => {
-        const existing = routineSkills.find(s => s.name === name);
-        return { name, value: existing?.value ?? '', deduction: '' };
-      });
+      const newSkills = routineSkills.map(skill => ({
+        name: skill.name,
+        value: skill.value,
+        deduction: '',
+      }));
       replace(newSkills);
       setOptimizations({});
     } else {
@@ -121,14 +119,14 @@ export function SubmitRoutineDialog({
     if (!selectedEvent) return;
     const skillsWithDeductions = values.skills.filter(s => s.deduction !== '' && s.value !== '');
     
-    const requiredSkillCount = getSubmissionSkillNamesForEvent(selectedEvent).length;
+    const requiredSkillCount = userRoutines[selectedEvent]?.length || 0;
     const isComplete = skillsWithDeductions.length === requiredSkillCount;
 
     const submission = {
         event: selectedEvent,
         timestamp: new Date().toISOString(),
         isComplete,
-        skills: skillsWithDeductions
+        skills: skillsWithDeductions as SubmissionSkill[],
     };
     onSave(submission);
     form.reset();
