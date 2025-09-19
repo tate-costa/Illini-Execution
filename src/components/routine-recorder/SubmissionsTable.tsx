@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -56,7 +57,7 @@ export function SubmissionsTable({ submissions, onDelete }: SubmissionsTableProp
     return filtered.sort((a, b) => {
       const dateA = new Date(a.timestamp).getTime();
       const dateB = new Date(b.timestamp).getTime();
-      return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+      return sortOrder === 'newest' ? dateB - dateA : dateA - b;
     });
   }, [submissions, eventFilter, sortOrder]);
 
@@ -94,7 +95,9 @@ export function SubmissionsTable({ submissions, onDelete }: SubmissionsTableProp
               <TableRow>
                 <TableHead className="w-[100px]">Event</TableHead>
                 <TableHead>Date</TableHead>
-                <TableHead>Routine</TableHead>
+                <TableHead className="text-center">Routine</TableHead>
+                <TableHead className="text-center">1/2</TableHead>
+                <TableHead className="text-center">Individual</TableHead>
                 <TableHead className="w-24 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -108,9 +111,19 @@ export function SubmissionsTable({ submissions, onDelete }: SubmissionsTableProp
                         <TableCell>{format(new Date(sub.timestamp), "PPP p")}</TableCell>
                         <TableCell className="text-center">
                           {sub.isComplete ? (
-                            <Check className="h-5 w-5 text-green-500" />
+                            <Check className="h-5 w-5 text-green-500 mx-auto" />
                           ) : (
-                            <X className="h-5 w-5 text-red-500" />
+                            <X className="h-5 w-5 text-red-500 mx-auto" />
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {sub.skills.length >= 4 && sub.skills.length <= 6 && (
+                            <Check className="h-5 w-5 text-green-500 mx-auto" />
+                          )}
+                        </TableCell>
+                         <TableCell className="text-center">
+                          {sub.skills.length === 1 && (
+                            <Check className="h-5 w-5 text-green-500 mx-auto" />
                           )}
                         </TableCell>
                         <TableCell className="text-right">
@@ -146,7 +159,7 @@ export function SubmissionsTable({ submissions, onDelete }: SubmissionsTableProp
                       </TableRow>
                       <CollapsibleContent asChild>
                          <tr className="bg-muted/50">
-                            <TableCell colSpan={4} className="p-4">
+                            <TableCell colSpan={6} className="p-4">
                               <p className="font-semibold mb-2">Skills Submitted:</p>
                               <div className="overflow-x-auto">
                                 <Table>
@@ -176,7 +189,7 @@ export function SubmissionsTable({ submissions, onDelete }: SubmissionsTableProp
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
+                  <TableCell colSpan={6} className="h-24 text-center">
                     No submissions found.
                   </TableCell>
                 </TableRow>
