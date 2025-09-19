@@ -9,10 +9,7 @@ import { Button } from '@/components/ui/button';
 import { EditRoutinesDialog } from './EditRoutinesDialog';
 import { SubmitRoutineDialog } from './SubmitRoutineDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Badge } from '../ui/badge';
-import { ScrollArea } from '../ui/scroll-area';
-import { Separator } from '../ui/separator';
-import { format } from 'date-fns';
+import { SubmissionsTable } from './SubmissionsTable';
 
 const initialUserData: UserData = { routines: {}, submissions: [] };
 
@@ -29,7 +26,7 @@ export function RoutineRecorder() {
 
   const hasRoutines = useMemo(() => {
     if (!currentUserData) return false;
-    return Object.keys(currentUserData.routines).length > 0;
+    return Object.values(currentUserData.routines).some(routine => routine.length > 0);
   }, [currentUserData]);
 
   const handleUserChange = (userId: string) => {
@@ -105,36 +102,9 @@ export function RoutineRecorder() {
       </Card>
       
       {currentUserData && currentUserData.submissions.length > 0 && (
-          <Card className="max-w-4xl mx-auto shadow-lg mt-8">
-            <CardHeader>
-              <CardTitle>Recent Submissions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-96">
-                <div className="space-y-4">
-                  {currentUserData.submissions.map((sub, index) => (
-                    <div key={sub.id}>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-semibold text-lg">{sub.event} Routine</p>
-                          <p className="text-sm text-muted-foreground">{format(new Date(sub.timestamp), "PPP p")}</p>
-                        </div>
-                        <Badge variant={sub.isComplete ? 'default' : 'destructive'} className={sub.isComplete ? 'bg-green-500' : 'bg-red-500'}>
-                          {sub.isComplete ? 'Complete' : 'Incomplete'}
-                        </Badge>
-                      </div>
-                      <ul className="mt-2 list-disc list-inside text-sm">
-                        {sub.skills.map(skill => (
-                           <li key={skill.name}>{skill.name}: Value {skill.value}, Deduction {skill.deduction}</li>
-                        ))}
-                      </ul>
-                      {index < currentUserData.submissions.length - 1 && <Separator className="mt-4" />}
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
+          <div className="max-w-4xl mx-auto mt-8">
+            <SubmissionsTable submissions={currentUserData.submissions} />
+          </div>
       )}
 
       {currentUserData && (
