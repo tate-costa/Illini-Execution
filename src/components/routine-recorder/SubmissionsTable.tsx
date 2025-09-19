@@ -35,6 +35,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Slider } from '../ui/slider';
+import { Switch } from '../ui/switch';
+import { Label } from '../ui/label';
 
 interface SubmissionsTableProps {
   submissions: Submission[];
@@ -42,13 +45,13 @@ interface SubmissionsTableProps {
 }
 
 type SortOrder = 'newest' | 'oldest';
-type TimeFilter = 'all' | '7' | '30' | '90';
 
 
 export function SubmissionsTable({ submissions, onDelete }: SubmissionsTableProps) {
   const [eventFilter, setEventFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
-  const [timeFilter, setTimeFilter] = useState<TimeFilter>('all');
+  const [useTimeFilter, setUseTimeFilter] = useState(true);
+  const [timeFilterDays, setTimeFilterDays] = useState(30);
 
   const filteredAndSortedSubmissions = useMemo(() => {
     let filtered = submissions;
@@ -57,26 +60,25 @@ export function SubmissionsTable({ submissions, onDelete }: SubmissionsTableProp
       filtered = filtered.filter(sub => sub.event === eventFilter);
     }
     
-    if (timeFilter !== 'all') {
-      const days = parseInt(timeFilter, 10);
-      const cutoffDate = subDays(new Date(), days);
+    if (useTimeFilter) {
+      const cutoffDate = subDays(new Date(), timeFilterDays);
       filtered = filtered.filter(sub => isAfter(new Date(sub.timestamp), cutoffDate));
     }
 
     return filtered.sort((a, b) => {
       const dateA = new Date(a.timestamp).getTime();
       const dateB = new Date(b.timestamp).getTime();
-      return sortOrder === 'newest' ? dateB - dateA : dateA - b;
+      return sortOrder === 'newest' ? dateB - dateA : dateA - b.timestamp;
     });
-  }, [submissions, eventFilter, sortOrder, timeFilter]);
+  }, [submissions, eventFilter, sortOrder, useTimeFilter, timeFilterDays]);
 
   return (
     <Card className="shadow-lg">
       <CardHeader>
         <CardTitle>Recent Submissions</CardTitle>
-        <div className="flex flex-col sm:flex-row gap-4 pt-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-4 items-end">
           <Select value={eventFilter} onValueChange={setEventFilter}>
-            <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectTrigger>
               <SelectValue placeholder="Filter by event" />
             </SelectTrigger>
             <SelectContent>
@@ -86,19 +88,30 @@ export function SubmissionsTable({ submissions, onDelete }: SubmissionsTableProp
               ))}
             </SelectContent>
           </Select>
-           <Select value={timeFilter} onValueChange={(value) => setTimeFilter(value as TimeFilter)}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Filter by time" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Time</SelectItem>
-              <SelectItem value="7">Last 7 Days</SelectItem>
-              <SelectItem value="30">Last 30 Days</SelectItem>
-               <SelectItem value="90">Last 90 Days</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="space-y-3">
+             <div className="flex items-center justify-between">
+               <Label htmlFor="time-filter-switch-table">All Time</Label>
+               <Switch
+                 id="time-filter-switch-table"
+                 checked={!useTimeFilter}
+                 onCheckedChange={(checked) => setUseTimeFilter(!checked)}
+               />
+             </div>
+             {useTimeFilter && (
+               <div className="space-y-2">
+                 <Label>Past {timeFilterDays} Days</Label>
+                 <Slider
+                  value={[timeFilterDays]}
+                  onValueChange={(value) => setTimeFilterDays(value[0])}
+                  min={1}
+                  max={90}
+                  step={1}
+                />
+               </div>
+             )}
+          </div>
           <Select value={sortOrder} onValueChange={(value) => setSortOrder(value as SortOrder)}>
-            <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectTrigger>
               <SelectValue placeholder="Sort by date" />
             </SelectTrigger>
             <SelectContent>

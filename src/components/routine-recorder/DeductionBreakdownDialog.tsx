@@ -17,6 +17,8 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
 import {
   BarChart,
   Bar,
@@ -39,7 +41,6 @@ interface DeductionBreakdownDialogProps {
 }
 
 type UserScope = 'currentUser' | 'allUsers';
-type TimeFilter = 'all' | '7' | '30' | '90';
 
 export function DeductionBreakdownDialog({
   isOpen,
@@ -49,7 +50,8 @@ export function DeductionBreakdownDialog({
 }: DeductionBreakdownDialogProps) {
   const [selectedEvent, setSelectedEvent] = useState(EVENTS[0]);
   const [userScope, setUserScope] = useState<UserScope>('currentUser');
-  const [timeFilter, setTimeFilter] = useState<TimeFilter>('all');
+  const [useTimeFilter, setUseTimeFilter] = useState(true);
+  const [timeFilterDays, setTimeFilterDays] = useState(30);
 
 
   const averageDeductions = useMemo(() => {
@@ -60,7 +62,7 @@ export function DeductionBreakdownDialog({
         ? [selectedUserId]
         : Object.keys(allUsersData);
         
-    const cutoffDate = timeFilter === 'all' ? null : subDays(new Date(), parseInt(timeFilter));
+    const cutoffDate = useTimeFilter ? subDays(new Date(), timeFilterDays) : null;
 
     for (const userId of userIdsToProcess) {
       const userData = allUsersData[userId];
@@ -96,7 +98,7 @@ export function DeductionBreakdownDialog({
     });
 
     return averages.sort((a, b) => b.averageDeduction - a.averageDeduction);
-  }, [selectedEvent, userScope, allUsersData, selectedUserId, timeFilter]);
+  }, [selectedEvent, userScope, allUsersData, selectedUserId, useTimeFilter, timeFilterDays]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -124,19 +126,27 @@ export function DeductionBreakdownDialog({
                 </SelectContent>
               </Select>
             </div>
-             <div className="space-y-2">
-              <Label htmlFor="time-filter">Time Period</Label>
-              <Select value={timeFilter} onValueChange={(value) => setTimeFilter(value as TimeFilter)}>
-                <SelectTrigger id="time-filter">
-                  <SelectValue placeholder="Select time period" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Time</SelectItem>
-                  <SelectItem value="7">Last 7 Days</SelectItem>
-                  <SelectItem value="30">Last 30 Days</SelectItem>
-                  <SelectItem value="90">Last 90 Days</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="space-y-4">
+               <div className="flex items-center justify-between">
+                 <Label htmlFor="time-filter-switch">All Time</Label>
+                 <Switch
+                   id="time-filter-switch"
+                   checked={!useTimeFilter}
+                   onCheckedChange={(checked) => setUseTimeFilter(!checked)}
+                 />
+               </div>
+               {useTimeFilter && (
+                 <div className="space-y-2">
+                   <Label>Past {timeFilterDays} Days</Label>
+                   <Slider
+                    value={[timeFilterDays]}
+                    onValueChange={(value) => setTimeFilterDays(value[0])}
+                    min={1}
+                    max={90}
+                    step={1}
+                  />
+                 </div>
+               )}
             </div>
             <div className="space-y-2">
               <Label>Data Scope</Label>
