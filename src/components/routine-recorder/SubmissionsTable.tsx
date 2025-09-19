@@ -134,104 +134,106 @@ export function SubmissionsTable({ submissions, onDelete }: SubmissionsTableProp
                 <TableHead className="w-24 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
               {filteredAndSortedSubmissions.length > 0 ? (
                 filteredAndSortedSubmissions.map(sub => (
-                  <Collapsible asChild key={sub.id}>
-                    <>
-                      <TableRow>
-                        <TableCell className="font-medium">{sub.event}</TableCell>
-                        <TableCell>{format(new Date(sub.timestamp), "PPP p")}</TableCell>
-                        <TableCell className="text-center">
-                          {sub.isComplete ? (
-                            <Check className="h-5 w-5 text-green-500 mx-auto" />
-                          ) : (
-                            <X className="h-5 w-5 text-red-500 mx-auto" />
-                          )}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {sub.skills.length >= 4 && sub.skills.length <= 6 ? (
-                            <Check className="h-5 w-5 text-green-500 mx-auto" />
-                          ) : (
-                             <X className="h-5 w-5 text-red-500 mx-auto" />
-                          )}
-                        </TableCell>
-                         <TableCell className="text-center">
-                          {sub.skills.length === 1 ? (
-                            <Check className="h-5 w-5 text-green-500 mx-auto" />
-                          ) : (
-                             <X className="h-5 w-5 text-red-500 mx-auto" />
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <CollapsibleTrigger asChild>
-                             <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <ChevronDown className="h-4 w-4" />
-                                <span className="sr-only">Toggle details</span>
-                             </Button>
-                          </CollapsibleTrigger>
-                           <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10">
-                                <Trash2 className="h-4 w-4" />
-                                <span className="sr-only">Delete submission</span>
+                  <TableBody key={sub.id}>
+                    <Collapsible asChild>
+                      <>
+                        <TableRow>
+                          <TableCell className="font-medium">{sub.event}</TableCell>
+                          <TableCell>{format(new Date(sub.timestamp), "PPP p")}</TableCell>
+                          <TableCell className="text-center">
+                            {sub.isComplete ? (
+                              <Check className="h-5 w-5 text-green-500 mx-auto" />
+                            ) : (
+                              <X className="h-5 w-5 text-red-500 mx-auto" />
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {sub.skills.length >= 4 && sub.skills.length <= 6 ? (
+                              <Check className="h-5 w-5 text-green-500 mx-auto" />
+                            ) : (
+                              <X className="h-5 w-5 text-red-500 mx-auto" />
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {sub.skills.length === 1 ? (
+                              <Check className="h-5 w-5 text-green-500 mx-auto" />
+                            ) : (
+                              <X className="h-5 w-5 text-red-500 mx-auto" />
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <CollapsibleTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <ChevronDown className="h-4 w-4" />
+                                  <span className="sr-only">Toggle details</span>
                               </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This action cannot be undone. This will permanently delete this submission.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => onDelete(sub.id)}>
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </TableCell>
-                      </TableRow>
-                      <CollapsibleContent asChild>
-                         <tr className="bg-muted/50">
-                            <TableCell colSpan={6} className="p-4">
-                              <p className="font-semibold mb-2">Skills Submitted:</p>
-                              <div className="overflow-x-auto">
-                                <Table>
-                                  <TableHeader>
-                                    <TableRow>
-                                      <TableHead>Skill</TableHead>
-                                      <TableHead className="text-right">Value</TableHead>
-                                      <TableHead className="text-right">Deduction</TableHead>
-                                    </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
-                                    {sub.skills.map(skill => (
-                                      <TableRow key={skill.name}>
-                                        <TableCell>{skill.name}</TableCell>
-                                        <TableCell className="text-right font-medium">{skill.value}</TableCell>
-                                        <TableCell className="text-right text-destructive">{skill.deduction}</TableCell>
+                            </CollapsibleTrigger>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10">
+                                  <Trash2 className="h-4 w-4" />
+                                  <span className="sr-only">Delete submission</span>
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently delete this submission.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => onDelete(sub.id)}>
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </TableCell>
+                        </TableRow>
+                        <CollapsibleContent asChild>
+                          <tr className="bg-muted/50">
+                              <TableCell colSpan={6} className="p-4">
+                                <p className="font-semibold mb-2">Skills Submitted:</p>
+                                <div className="overflow-x-auto">
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow>
+                                        <TableHead>Skill</TableHead>
+                                        <TableHead className="text-right">Value</TableHead>
+                                        <TableHead className="text-right">Deduction</TableHead>
                                       </TableRow>
-                                    ))}
-                                  </TableBody>
-                                </Table>
-                              </div>
-                            </TableCell>
-                         </tr>
-                      </CollapsibleContent>
-                    </>
-                  </Collapsible>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {sub.skills.map(skill => (
+                                        <TableRow key={skill.name}>
+                                          <TableCell>{skill.name}</TableCell>
+                                          <TableCell className="text-right font-medium">{skill.value}</TableCell>
+                                          <TableCell className="text-right text-destructive">{skill.deduction}</TableCell>
+                                        </TableRow>
+                                      ))}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+                              </TableCell>
+                          </tr>
+                        </CollapsibleContent>
+                      </>
+                    </Collapsible>
+                  </TableBody>
                 ))
               ) : (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
-                    No submissions found.
-                  </TableCell>
-                </TableRow>
+                <TableBody>
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center">
+                      No submissions found.
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
               )}
-            </TableBody>
           </Table>
         </div>
       </CardContent>
