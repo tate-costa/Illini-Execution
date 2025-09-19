@@ -58,6 +58,17 @@ export function RoutineRecorder() {
     setData(newData);
     setIsSubmitOpen(false);
   };
+  
+  const handleDeleteSubmission = (submissionId: string) => {
+    if (!selectedUserId) return;
+    const newData = { ...data };
+    if (newData[selectedUserId]) {
+      newData[selectedUserId].submissions = newData[selectedUserId].submissions.filter(
+        (sub) => sub.id !== submissionId
+      );
+      setData(newData);
+    }
+  };
 
   return (
     <div className="container mx-auto p-4 md:p-8">
@@ -103,7 +114,10 @@ export function RoutineRecorder() {
       
       {selectedUserId && currentUserData && currentUserData.submissions.length > 0 && (
           <div className="max-w-4xl mx-auto mt-8">
-            <SubmissionsTable submissions={currentUserData.submissions} />
+            <SubmissionsTable 
+              submissions={currentUserData.submissions}
+              onDelete={handleDeleteSubmission}
+            />
           </div>
       )}
 

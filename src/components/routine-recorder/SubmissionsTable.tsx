@@ -22,16 +22,28 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { EVENTS } from '@/lib/constants';
 import { format } from 'date-fns';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface SubmissionsTableProps {
   submissions: Submission[];
+  onDelete: (submissionId: string) => void;
 }
 
 type SortOrder = 'newest' | 'oldest';
 
-export function SubmissionsTable({ submissions }: SubmissionsTableProps) {
+export function SubmissionsTable({ submissions, onDelete }: SubmissionsTableProps) {
   const [eventFilter, setEventFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
 
@@ -84,7 +96,7 @@ export function SubmissionsTable({ submissions }: SubmissionsTableProps) {
                 <TableHead className="w-[100px]">Event</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="w-12"></TableHead>
+                <TableHead className="w-24 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -100,26 +112,61 @@ export function SubmissionsTable({ submissions }: SubmissionsTableProps) {
                             {sub.isComplete ? 'Complete' : 'Incomplete'}
                           </Badge>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-right">
                           <CollapsibleTrigger asChild>
-                             <Button variant="ghost" size="sm">
+                             <Button variant="ghost" size="icon" className="h-8 w-8">
                                 <ChevronDown className="h-4 w-4" />
                                 <span className="sr-only">Toggle details</span>
                              </Button>
                           </CollapsibleTrigger>
+                           <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10">
+                                <Trash2 className="h-4 w-4" />
+                                <span className="sr-only">Delete submission</span>
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This action cannot be undone. This will permanently delete this submission.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => onDelete(sub.id)}>
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </TableCell>
                       </TableRow>
                       <CollapsibleContent asChild>
                          <tr className="bg-muted/50">
                             <TableCell colSpan={4} className="p-4">
                               <p className="font-semibold mb-2">Skills Submitted:</p>
-                              <ul className="list-disc list-inside text-sm space-y-1">
-                                {sub.skills.map(skill => (
-                                  <li key={skill.name}>
-                                    {skill.name}: <span className="font-medium">Value {skill.value}</span>, <span className="text-destructive">Deduction {skill.deduction}</span>
-                                  </li>
-                                ))}
-                              </ul>
+                              <div className="overflow-x-auto">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead>Skill</TableHead>
+                                      <TableHead className="text-right">Value</TableHead>
+                                      <TableHead className="text-right">Deduction</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {sub.skills.map(skill => (
+                                      <TableRow key={skill.name}>
+                                        <TableCell>{skill.name}</TableCell>
+                                        <TableCell className="text-right font-medium">{skill.value}</TableCell>
+                                        <TableCell className="text-right text-destructive">{skill.deduction}</TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
                             </TableCell>
                          </tr>
                       </CollapsibleContent>
