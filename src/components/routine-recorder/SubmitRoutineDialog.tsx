@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -45,7 +46,7 @@ const skillSchema = z.object({
   id: z.string(), // Unique ID for the field array
   name: z.string(),
   value: z.coerce.number().or(z.literal('')),
-  deduction: z.coerce.number().min(0, "Deduction must be positive").optional().or(z.literal('')),
+  deduction: z.union([z.coerce.number().min(0, "Deduction must be positive"), z.literal('N/A'), z.literal('')]),
 });
 
 const formSchema = z.object({
@@ -97,7 +98,7 @@ export function SubmitRoutineDialog({
         id: `${skill.name}-${index}`, // Simple unique ID
         name: skill.name,
         value: skill.value,
-        deduction: '',
+        deduction: 'N/A',
       }));
       replace(newSkills);
       setOptimizations({});
@@ -112,7 +113,7 @@ export function SubmitRoutineDialog({
         ...currentSkill,
         name: newSkill.name,
         value: newSkill.value,
-        deduction: '', // Reset deduction on swap
+        deduction: 'N/A', // Reset deduction on swap
     });
   };
 
@@ -152,13 +153,16 @@ export function SubmitRoutineDialog({
     
     // Filter to only include skills where a deduction was entered.
     const skillsToSave = values.skills
-      .filter(s => s.deduction !== '' && s.deduction !== undefined && s.deduction !== null)
-      .map(({id, ...rest}) => rest) as SubmissionSkill[];
+      .filter(s => s.deduction !== '' && s.deduction !== undefined && s.deduction !== null && s.deduction !== 'N/A')
+      .map(({id, ...rest}) => ({
+          ...rest,
+          deduction: Number(rest.deduction)
+      })) as SubmissionSkill[];
 
     // A routine is complete if it has the required number of skills and every displayed skill has a deduction.
     const requiredSkillCount = selectedEvent === 'VT' ? 2 : 8;
     const hasAllSkills = values.skills.length >= requiredSkillCount;
-    const allDeductionsFilled = values.skills.every(s => s.deduction !== '' && s.deduction !== undefined && s.deduction !== null);
+    const allDeductionsFilled = values.skills.every(s => s.deduction !== '' && s.deduction !== undefined && s.deduction !== null && s.deduction !== 'N/A');
     const isComplete = hasAllSkills && allDeductionsFilled;
       
     const submission = {
@@ -214,17 +218,30 @@ export function SubmitRoutineDialog({
                     <Controller
                       control={form.control}
                       name={`skills.${index}.deduction`}
-                      render={({ field: controllerField, fieldState }) => (
+                      render={({ field: controllerField, fieldState }) => {
+                        const { value, ...restField } = controllerField;
+                        return (
                         <div className="w-28">
                         <Input
                           type="number"
                           step="0.1"
                           placeholder="Deduction"
-                          {...controllerField}
+                          value={value === 'N/A' ? '' : value}
+                          onFocus={(e) => {
+                            if (e.target.value === 'N/A') {
+                                form.setValue(`skills.${index}.deduction`, '');
+                            }
+                          }}
+                          onBlur={(e) => {
+                            if (e.target.value === '') {
+                                form.setValue(`skills.${index}.deduction`, 'N/A');
+                            }
+                          }}
+                          {...restField}
                         />
                          {fieldState.error && <p className="text-destructive text-sm mt-1">{fieldState.error.message}</p>}
                         </div>
-                      )}
+                      )}}
                     />
                     {alternateSkills.length > 0 && (
                         <Popover>
@@ -276,3 +293,5 @@ export function SubmitRoutineDialog({
     </Dialog>
   );
 }
+
+    
