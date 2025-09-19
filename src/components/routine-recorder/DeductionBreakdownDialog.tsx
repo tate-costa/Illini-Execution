@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -87,7 +87,7 @@ export function DeductionBreakdownDialog({
         setSelectedSkill(undefined);
       }
       return skills;
-  }, [viewMode, allUsersData, selectedEvent, cutoffDate]);
+  }, [viewMode, allUsersData, selectedEvent, cutoffDate, selectedSkill]);
 
 
   const chartData = useMemo(() => {
