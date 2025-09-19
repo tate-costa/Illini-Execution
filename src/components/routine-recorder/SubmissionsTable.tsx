@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { EVENTS } from '@/lib/constants';
-import { format } from 'date-fns';
+import { format, subDays, isAfter } from 'date-fns';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
 import { ChevronDown, Trash2, Check, X } from 'lucide-react';
 import { Button } from '../ui/button';
@@ -42,10 +42,13 @@ interface SubmissionsTableProps {
 }
 
 type SortOrder = 'newest' | 'oldest';
+type TimeFilter = 'all' | '7' | '30' | '90';
+
 
 export function SubmissionsTable({ submissions, onDelete }: SubmissionsTableProps) {
   const [eventFilter, setEventFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>('all');
 
   const filteredAndSortedSubmissions = useMemo(() => {
     let filtered = submissions;
@@ -53,13 +56,19 @@ export function SubmissionsTable({ submissions, onDelete }: SubmissionsTableProp
     if (eventFilter !== 'all') {
       filtered = filtered.filter(sub => sub.event === eventFilter);
     }
+    
+    if (timeFilter !== 'all') {
+      const days = parseInt(timeFilter, 10);
+      const cutoffDate = subDays(new Date(), days);
+      filtered = filtered.filter(sub => isAfter(new Date(sub.timestamp), cutoffDate));
+    }
 
     return filtered.sort((a, b) => {
       const dateA = new Date(a.timestamp).getTime();
       const dateB = new Date(b.timestamp).getTime();
       return sortOrder === 'newest' ? dateB - dateA : dateA - b;
     });
-  }, [submissions, eventFilter, sortOrder]);
+  }, [submissions, eventFilter, sortOrder, timeFilter]);
 
   return (
     <Card className="shadow-lg">
@@ -75,6 +84,17 @@ export function SubmissionsTable({ submissions, onDelete }: SubmissionsTableProp
               {EVENTS.map(event => (
                 <SelectItem key={event} value={event}>{event}</SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+           <Select value={timeFilter} onValueChange={(value) => setTimeFilter(value as TimeFilter)}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Filter by time" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Time</SelectItem>
+              <SelectItem value="7">Last 7 Days</SelectItem>
+              <SelectItem value="30">Last 30 Days</SelectItem>
+               <SelectItem value="90">Last 90 Days</SelectItem>
             </SelectContent>
           </Select>
           <Select value={sortOrder} onValueChange={(value) => setSortOrder(value as SortOrder)}>
@@ -117,13 +137,17 @@ export function SubmissionsTable({ submissions, onDelete }: SubmissionsTableProp
                           )}
                         </TableCell>
                         <TableCell className="text-center">
-                          {sub.skills.length >= 4 && sub.skills.length <= 6 && (
+                          {sub.skills.length >= 4 && sub.skills.length <= 6 ? (
                             <Check className="h-5 w-5 text-green-500 mx-auto" />
+                          ) : (
+                             <X className="h-5 w-5 text-red-500 mx-auto" />
                           )}
                         </TableCell>
                          <TableCell className="text-center">
-                          {sub.skills.length === 1 && (
+                          {sub.skills.length === 1 ? (
                             <Check className="h-5 w-5 text-green-500 mx-auto" />
+                          ) : (
+                             <X className="h-5 w-5 text-red-500 mx-auto" />
                           )}
                         </TableCell>
                         <TableCell className="text-right">

@@ -28,7 +28,8 @@ import {
   LabelList,
 } from 'recharts';
 import { EVENTS } from '@/lib/constants';
-import type { AppData, SubmissionSkill } from '@/lib/types';
+import type { AppData } from '@/lib/types';
+import { subDays, isAfter } from 'date-fns';
 
 interface DeductionBreakdownDialogProps {
   isOpen: boolean;
@@ -38,6 +39,7 @@ interface DeductionBreakdownDialogProps {
 }
 
 type UserScope = 'currentUser' | 'allUsers';
+type TimeFilter = 'all' | '7' | '30' | '90';
 
 export function DeductionBreakdownDialog({
   isOpen,
@@ -47,6 +49,8 @@ export function DeductionBreakdownDialog({
 }: DeductionBreakdownDialogProps) {
   const [selectedEvent, setSelectedEvent] = useState(EVENTS[0]);
   const [userScope, setUserScope] = useState<UserScope>('currentUser');
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>('all');
+
 
   const averageDeductions = useMemo(() => {
     const skillDeductions: Record<string, number[]> = {};
@@ -55,14 +59,20 @@ export function DeductionBreakdownDialog({
       userScope === 'currentUser' && selectedUserId
         ? [selectedUserId]
         : Object.keys(allUsersData);
+        
+    const cutoffDate = timeFilter === 'all' ? null : subDays(new Date(), parseInt(timeFilter));
 
     for (const userId of userIdsToProcess) {
       const userData = allUsersData[userId];
       if (!userData) continue;
 
-      const eventSubmissions = userData.submissions.filter(
+      let eventSubmissions = userData.submissions.filter(
         sub => sub.event === selectedEvent
       );
+
+      if (cutoffDate) {
+        eventSubmissions = eventSubmissions.filter(sub => isAfter(new Date(sub.timestamp), cutoffDate));
+      }
 
       for (const submission of eventSubmissions) {
         for (const skill of submission.skills) {
@@ -86,7 +96,7 @@ export function DeductionBreakdownDialog({
     });
 
     return averages.sort((a, b) => b.averageDeduction - a.averageDeduction);
-  }, [selectedEvent, userScope, allUsersData, selectedUserId]);
+  }, [selectedEvent, userScope, allUsersData, selectedUserId, timeFilter]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -111,6 +121,20 @@ export function DeductionBreakdownDialog({
                       {event}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+             <div className="space-y-2">
+              <Label htmlFor="time-filter">Time Period</Label>
+              <Select value={timeFilter} onValueChange={(value) => setTimeFilter(value as TimeFilter)}>
+                <SelectTrigger id="time-filter">
+                  <SelectValue placeholder="Select time period" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Time</SelectItem>
+                  <SelectItem value="7">Last 7 Days</SelectItem>
+                  <SelectItem value="30">Last 30 Days</SelectItem>
+                  <SelectItem value="90">Last 90 Days</SelectItem>
                 </SelectContent>
               </Select>
             </div>
