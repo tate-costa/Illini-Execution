@@ -68,7 +68,7 @@ export function SubmissionsTable({ submissions, onDelete }: SubmissionsTableProp
     return filtered.sort((a, b) => {
       const dateA = new Date(a.timestamp).getTime();
       const dateB = new Date(b.timestamp).getTime();
-      return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+      return sortOrder === 'newest' ? dateB - dateA : dateA - b;
     });
   }, [submissions, eventFilter, sortOrder, useTimeFilter, timeFilterDays]);
 
@@ -137,7 +137,7 @@ export function SubmissionsTable({ submissions, onDelete }: SubmissionsTableProp
             <TableBody>
               {filteredAndSortedSubmissions.length > 0 ? (
                 filteredAndSortedSubmissions.map(sub => (
-                  <Collapsible asChild key={sub.id}>
+                  <Collapsible asChild key={sub.id} tag="tbody">
                     <>
                       <TableRow>
                         <TableCell className="font-medium">{sub.event}</TableCell>
