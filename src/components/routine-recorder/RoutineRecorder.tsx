@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { SubmissionsTable } from './SubmissionsTable';
 import { DeductionBreakdownDialog } from './DeductionBreakdownDialog';
 
-const initialUserData: UserData = { routines: {}, submissions: [] };
+const initialUserData: Omit<UserData, 'userName'> = { routines: {}, submissions: [] };
 
 export function RoutineRecorder() {
   const [data, setData] = useLocalStorage<AppData>('routine-recorder-data', {});
@@ -21,14 +21,14 @@ export function RoutineRecorder() {
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
   const [isBreakdownOpen, setIsBreakdownOpen] = useState(false);
 
-  const currentUserData = useMemo(() => {
-    if (!selectedUserId) return null;
-    return data[selectedUserId] || initialUserData;
-  }, [selectedUserId, data]);
-  
   const selectedUserName = useMemo(() => {
     return USERS.find(user => user.id === selectedUserId)?.name;
   }, [selectedUserId]);
+  
+  const currentUserData = useMemo(() => {
+    if (!selectedUserId) return null;
+    return data[selectedUserId] || { ...initialUserData, userName: selectedUserName || '' };
+  }, [selectedUserId, data, selectedUserName]);
 
   const hasRoutines = useMemo(() => {
     if (!currentUserData) return false;
@@ -37,13 +37,24 @@ export function RoutineRecorder() {
 
   const handleUserChange = (userId: string) => {
     setSelectedUserId(userId);
+    const newName = USERS.find(u => u.id === userId)?.name;
+    // Ensure user data has a name
+    if (!data[userId] && newName) {
+      const newData = { ...data };
+      newData[userId] = { ...initialUserData, userName: newName };
+      setData(newData);
+    } else if (data[userId] && !data[userId].userName && newName) {
+      const newData = { ...data };
+      newData[userId].userName = newName;
+      setData(newData);
+    }
   };
 
   const handleSaveRoutine = (event: string, routine: UserRoutines) => {
-    if (!selectedUserId) return;
+    if (!selectedUserId || !selectedUserName) return;
     const newData = { ...data };
     if (!newData[selectedUserId]) {
-      newData[selectedUserId] = { ...initialUserData };
+      newData[selectedUserId] = { ...initialUserData, userName: selectedUserName };
     }
     newData[selectedUserId].routines = routine;
     setData(newData);
@@ -51,14 +62,14 @@ export function RoutineRecorder() {
   };
 
   const handleSaveSubmission = (submission: Omit<Submission, 'id'>) => {
-    if (!selectedUserId) return;
+    if (!selectedUserId || !selectedUserName) return;
     const newSubmission: Submission = {
         ...submission,
         id: new Date().toISOString() + Math.random(),
     };
     const newData = { ...data };
     if (!newData[selectedUserId]) {
-      newData[selectedUserId] = { ...initialUserData };
+      newData[selectedUserId] = { ...initialUserData, userName: selectedUserName };
     }
     newData[selectedUserId].submissions.unshift(newSubmission); // Add to beginning of array
     setData(newData);

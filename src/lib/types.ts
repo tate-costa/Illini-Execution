@@ -24,6 +24,7 @@ export type Submission = {
 };
 
 export type UserData = {
+  userName: string;
   routines: UserRoutines;
   submissions: Submission[];
 };

@@ -1,5 +1,3 @@
-
-      
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -32,6 +30,7 @@ import {
   LabelList,
   Legend,
 } from 'recharts';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EVENTS } from '@/lib/constants';
 import type { AppData } from '@/lib/types';
 import { subDays, isAfter } from 'date-fns';
@@ -45,6 +44,7 @@ interface DeductionBreakdownDialogProps {
 }
 
 type UserScope = 'currentUser' | 'allUsers';
+type ViewMode = 'breakdown' | 'comparison';
 
 export function DeductionBreakdownDialog({
   isOpen,
@@ -53,42 +53,21 @@ export function DeductionBreakdownDialog({
   selectedUserId,
   selectedUserName,
 }: DeductionBreakdownDialogProps) {
+  const [viewMode, setViewMode] = useState<ViewMode>('breakdown');
   const [selectedEvent, setSelectedEvent] = useState(EVENTS[0]);
   const [userScope, setUserScope] = useState<UserScope>('currentUser');
   const [useTimeFilter, setUseTimeFilter] = useState(true);
   const [timeFilterDays, setTimeFilterDays] = useState(30);
-  const [isComparisonMode, setIsComparisonMode] = useState(false);
+  const [selectedSkill, setSelectedSkill] = useState<string | undefined>();
 
-
-  const chartData = useMemo(() => {
-    const cutoffDate = useTimeFilter ? subDays(new Date(), timeFilterDays) : null;
-
-    if (isComparisonMode) {
-      if (!selectedUserId) return [];
-      
-      const currentUserSkillDeductions: Record<string, number[]> = {};
-      const otherUsersSkillDeductions: Record<string, number[]> = {};
-
-      // Process current user's data
-      const currentUserData = allUsersData[selectedUserId];
-      if (currentUserData) {
-        let eventSubmissions = currentUserData.submissions.filter(sub => sub.event === selectedEvent);
-        if (cutoffDate) {
-          eventSubmissions = eventSubmissions.filter(sub => isAfter(new Date(sub.timestamp), cutoffDate));
-        }
-        for (const submission of eventSubmissions) {
-          for (const skill of submission.skills) {
-            if (typeof skill.deduction === 'number') {
-              if (!currentUserSkillDeductions[skill.name]) currentUserSkillDeductions[skill.name] = [];
-              currentUserSkillDeductions[skill.name].push(skill.deduction);
-            }
-          }
-        }
-      }
-
-      // Process other users' data
+  const cutoffDate = useMemo(() => {
+    return useTimeFilter ? subDays(new Date(), timeFilterDays) : null;
+  }, [useTimeFilter, timeFilterDays]);
+  
+  const allSkillsInEvent = useMemo(() => {
+     if (viewMode !== 'comparison') return [];
+     const skillSet = new Set<string>();
       for (const userId in allUsersData) {
-        if (userId === selectedUserId) continue;
         const userData = allUsersData[userId];
         let eventSubmissions = userData.submissions.filter(sub => sub.event === selectedEvent);
         if (cutoffDate) {
@@ -96,36 +75,23 @@ export function DeductionBreakdownDialog({
         }
         for (const submission of eventSubmissions) {
           for (const skill of submission.skills) {
-            if (typeof skill.deduction === 'number') {
-              if (!otherUsersSkillDeductions[skill.name]) otherUsersSkillDeductions[skill.name] = [];
-              otherUsersSkillDeductions[skill.name].push(skill.deduction);
-            }
+            skillSet.add(skill.name);
           }
         }
       }
-      
-      const allSkillNames = new Set([
-        ...Object.keys(currentUserSkillDeductions),
-        ...Object.keys(otherUsersSkillDeductions)
-      ]);
+      const skills = Array.from(skillSet).sort();
+      // Reset selected skill if it's not in the new list
+      if (skills.length > 0 && !skills.includes(selectedSkill || '')) {
+        setSelectedSkill(skills[0]);
+      } else if (skills.length === 0) {
+        setSelectedSkill(undefined);
+      }
+      return skills;
+  }, [viewMode, allUsersData, selectedEvent, cutoffDate]);
 
-      const comparisonAverages = Array.from(allSkillNames).map(name => {
-        const currentUserDeductions = currentUserSkillDeductions[name] || [];
-        const otherUsersDeductions = otherUsersSkillDeductions[name] || [];
 
-        const currentUserSum = currentUserDeductions.reduce((a, b) => a + b, 0);
-        const currentUserAverage = currentUserDeductions.length > 0 ? parseFloat((currentUserSum / currentUserDeductions.length).toFixed(2)) : null;
-
-        const otherUsersSum = otherUsersDeductions.reduce((a, b) => a + b, 0);
-        const otherUsersAverage = otherUsersDeductions.length > 0 ? parseFloat((otherUsersSum / otherUsersDeductions.length).toFixed(2)) : null;
-        
-        return { name, currentUserAverage, otherUsersAverage };
-      });
-
-      return comparisonAverages.sort((a, b) => (b.currentUserAverage || 0) - (a.currentUserAverage || 0));
-
-    } else {
-      // Original average calculation logic
+  const chartData = useMemo(() => {
+    if (viewMode === 'breakdown') {
       const skillDeductions: Record<string, number[]> = {};
       const userIdsToProcess =
         userScope === 'currentUser' && selectedUserId
@@ -157,136 +123,256 @@ export function DeductionBreakdownDialog({
       });
 
       return averages.sort((a, b) => b.averageDeduction - a.averageDeduction);
+    } else { // Comparison mode
+        if (!selectedSkill) return [];
+        
+        const userDeductions: Record<string, {name: string, deductions: number[]}> = {};
+        
+        for (const userId in allUsersData) {
+            const userData = allUsersData[userId];
+            const userName = userData.userName || `User ${userId.slice(-4)}`;
+            
+            let eventSubmissions = userData.submissions.filter(sub => sub.event === selectedEvent);
+            if (cutoffDate) {
+                eventSubmissions = eventSubmissions.filter(sub => isAfter(new Date(sub.timestamp), cutoffDate));
+            }
+
+            for (const submission of eventSubmissions) {
+                for (const skill of submission.skills) {
+                    if (skill.name === selectedSkill && typeof skill.deduction === 'number') {
+                        if (!userDeductions[userId]) userDeductions[userId] = { name: userName, deductions: [] };
+                        userDeductions[userId].deductions.push(skill.deduction);
+                    }
+                }
+            }
+        }
+        
+        const comparisonAverages = Object.values(userDeductions).map(({name, deductions}) => {
+            const sum = deductions.reduce((a, b) => a + b, 0);
+            const average = sum / deductions.length;
+            return { name, averageDeduction: parseFloat(average.toFixed(2)) };
+        });
+
+        return comparisonAverages.sort((a, b) => b.averageDeduction - a.averageDeduction);
     }
-  }, [selectedEvent, userScope, allUsersData, selectedUserId, useTimeFilter, timeFilterDays, isComparisonMode]);
+  }, [viewMode, selectedEvent, userScope, allUsersData, selectedUserId, cutoffDate, selectedSkill]);
+  
+  // Effect to reset skill selection when event changes
+  useEffect(() => {
+    if(viewMode === 'comparison' && allSkillsInEvent.length > 0) {
+        setSelectedSkill(allSkillsInEvent[0]);
+    } else {
+        setSelectedSkill(undefined);
+    }
+  }, [selectedEvent, allSkillsInEvent, viewMode]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle>Deduction Breakdown</DialogTitle>
+          <DialogTitle>Analyze Deductions</DialogTitle>
           <DialogDescription>
-            Analyze average deductions per skill.
+            Explore average deductions by skill, or compare performance across users.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 py-4">
-          <div className="md:col-span-1 space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="event-filter">Event</Label>
-              <Select value={selectedEvent} onValueChange={setSelectedEvent}>
-                <SelectTrigger id="event-filter">
-                  <SelectValue placeholder="Select an event" />
-                </SelectTrigger>
-                <SelectContent>
-                  {EVENTS.map(event => (
-                    <SelectItem key={event} value={event}>
-                      {event}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-4">
-               <div className="flex items-center justify-between">
-                 <Label htmlFor="time-filter-switch">All Time</Label>
-                 <Switch
-                   id="time-filter-switch"
-                   checked={!useTimeFilter}
-                   onCheckedChange={(checked) => setUseTimeFilter(!checked)}
-                 />
-               </div>
-               {useTimeFilter && (
-                 <div className="space-y-2">
-                   <Label>Past {timeFilterDays} Days</Label>
-                   <Slider
-                    value={[timeFilterDays]}
-                    onValueChange={(value) => setTimeFilterDays(value[0])}
-                    min={1}
-                    max={90}
-                    step={1}
-                  />
+        <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as ViewMode)} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="breakdown">Overall Breakdown</TabsTrigger>
+                <TabsTrigger value="comparison">Skill Comparison</TabsTrigger>
+            </TabsList>
+            <TabsContent value="breakdown">
+                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6 py-4">
+                    <div className="md:col-span-1 space-y-6">
+                        {/* Filters */}
+                        <div className="space-y-2">
+                          <Label htmlFor="event-filter-breakdown">Event</Label>
+                          <Select value={selectedEvent} onValueChange={setSelectedEvent}>
+                            <SelectTrigger id="event-filter-breakdown">
+                              <SelectValue placeholder="Select an event" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {EVENTS.map(event => (
+                                <SelectItem key={event} value={event}>
+                                  {event}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-4">
+                           <div className="flex items-center justify-between">
+                             <Label htmlFor="time-filter-switch-breakdown">All Time</Label>
+                             <Switch
+                               id="time-filter-switch-breakdown"
+                               checked={!useTimeFilter}
+                               onCheckedChange={(checked) => setUseTimeFilter(!checked)}
+                             />
+                           </div>
+                           {useTimeFilter && (
+                             <div className="space-y-2">
+                               <Label>Past {timeFilterDays} Days</Label>
+                               <Slider
+                                value={[timeFilterDays]}
+                                onValueChange={(value) => setTimeFilterDays(value[0])}
+                                min={1}
+                                max={90}
+                                step={1}
+                              />
+                             </div>
+                           )}
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Data Scope</Label>
+                            <RadioGroup
+                            value={userScope}
+                            onValueChange={(value: string) => setUserScope(value as UserScope)}
+                            >
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="currentUser" id="r1" disabled={!selectedUserId} />
+                                <Label htmlFor="r1">{selectedUserName || 'Current User'}</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="allUsers" id="r2" />
+                                <Label htmlFor="r2">All Users</Label>
+                            </div>
+                            </RadioGroup>
+                        </div>
+                    </div>
+                    <div className="md:col-span-3 h-96">
+                        {/* Chart */}
+                        {chartData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                            data={chartData}
+                            layout="vertical"
+                            margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                            >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis type="number" />
+                            <YAxis
+                                dataKey="name"
+                                type="category"
+                                width={100}
+                                tick={{ fontSize: 12 }}
+                            />
+                            <Tooltip
+                                contentStyle={{
+                                background: 'hsl(var(--background))',
+                                border: '1px solid hsl(var(--border))',
+                                borderRadius: 'var(--radius)',
+                                }}
+                                cursor={{ fill: 'hsl(var(--muted))' }}
+                            />
+                            <Bar dataKey="averageDeduction" name="Avg. Deduction" fill="hsl(var(--primary))">
+                                <LabelList dataKey="averageDeduction" position="right" style={{ fill: 'hsl(var(--foreground))' }} />
+                            </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                        ) : (
+                        <div className="flex items-center justify-center h-full text-muted-foreground">
+                            No data available for this selection.
+                        </div>
+                        )}
+                    </div>
                  </div>
-               )}
-            </div>
-             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="comparison-mode-switch">Skill Comparison Mode</Label>
-                <Switch
-                  id="comparison-mode-switch"
-                  checked={isComparisonMode}
-                  onCheckedChange={setIsComparisonMode}
-                  disabled={!selectedUserId}
-                />
-              </div>
-            </div>
-            
-            {!isComparisonMode && (
-              <div className="space-y-2">
-                <Label>Data Scope</Label>
-                <RadioGroup
-                  value={userScope}
-                  onValueChange={(value: string) => setUserScope(value as UserScope)}
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="currentUser" id="r1" />
-                    <Label htmlFor="r1">{selectedUserName || 'Current User'}</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="allUsers" id="r2" />
-                    <Label htmlFor="r2">All Users</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-            )}
-          </div>
-          <div className="md:col-span-3 h-96">
-            {chartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={chartData}
-                  layout="vertical"
-                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis
-                    dataKey="name"
-                    type="category"
-                    width={100}
-                    tick={{ fontSize: 12 }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: 'hsl(var(--background))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: 'var(--radius)',
-                    }}
-                    cursor={{ fill: 'hsl(var(--muted))' }}
-                  />
-                  {isComparisonMode && <Legend />}
-                  {isComparisonMode ? (
-                    <>
-                      <Bar dataKey="currentUserAverage" name={selectedUserName || 'Current User'} fill="hsl(var(--primary))" />
-                      <Bar dataKey="otherUsersAverage" name="Other Users" fill="hsl(var(--accent))" />
-                    </>
-                  ) : (
-                    <Bar dataKey="averageDeduction" fill="hsl(var(--primary))">
-                      <LabelList dataKey="averageDeduction" position="right" style={{ fill: 'hsl(var(--foreground))' }} />
-                    </Bar>
-                  )}
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex items-center justify-center h-full text-muted-foreground">
-                No data available for this selection.
-              </div>
-            )}
-          </div>
-        </div>
+            </TabsContent>
+            <TabsContent value="comparison">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 py-4">
+                    <div className="md:col-span-1 space-y-6">
+                        {/* Filters */}
+                         <div className="space-y-2">
+                          <Label htmlFor="event-filter-comparison">Event</Label>
+                          <Select value={selectedEvent} onValueChange={setSelectedEvent}>
+                            <SelectTrigger id="event-filter-comparison">
+                              <SelectValue placeholder="Select an event" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {EVENTS.map(event => (
+                                <SelectItem key={event} value={event}>
+                                  {event}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="skill-filter-comparison">Skill</Label>
+                           <Select value={selectedSkill} onValueChange={setSelectedSkill} disabled={allSkillsInEvent.length === 0}>
+                            <SelectTrigger id="skill-filter-comparison">
+                              <SelectValue placeholder="Select a skill" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {allSkillsInEvent.map(skill => (
+                                <SelectItem key={skill} value={skill}>
+                                  {skill}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-4">
+                           <div className="flex items-center justify-between">
+                             <Label htmlFor="time-filter-switch-comparison">All Time</Label>
+                             <Switch
+                               id="time-filter-switch-comparison"
+                               checked={!useTimeFilter}
+                               onCheckedChange={(checked) => setUseTimeFilter(!checked)}
+                             />
+                           </div>
+                           {useTimeFilter && (
+                             <div className="space-y-2">
+                               <Label>Past {timeFilterDays} Days</Label>
+                               <Slider
+                                value={[timeFilterDays]}
+                                onValueChange={(value) => setTimeFilterDays(value[0])}
+                                min={1}
+                                max={90}
+                                step={1}
+                              />
+                             </div>
+                           )}
+                        </div>
+                    </div>
+                    <div className="md:col-span-3 h-96">
+                        {/* Chart */}
+                         {chartData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                            data={chartData}
+                            layout="vertical"
+                            margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                            >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis type="number" domain={[0, 'dataMax + 0.1']} />
+                            <YAxis
+                                dataKey="name"
+                                type="category"
+                                width={100}
+                                tick={{ fontSize: 12 }}
+                            />
+                            <Tooltip
+                                contentStyle={{
+                                background: 'hsl(var(--background))',
+                                border: '1px solid hsl(var(--border))',
+                                borderRadius: 'var(--radius)',
+                                }}
+                                cursor={{ fill: 'hsl(var(--muted))' }}
+                            />
+                            <Bar dataKey="averageDeduction" name="Avg. Deduction" fill="hsl(var(--primary))">
+                                <LabelList dataKey="averageDeduction" position="right" style={{ fill: 'hsl(var(--foreground))' }} />
+                            </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                        ) : (
+                        <div className="flex items-center justify-center h-full text-muted-foreground">
+                            {selectedSkill ? 'No data available for this skill.' : 'Please select a skill to compare.'}
+                        </div>
+                        )}
+                    </div>
+                </div>
+            </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
 }
-
-
-    
