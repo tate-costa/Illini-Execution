@@ -133,6 +133,9 @@ export function DeductionBreakdownDialog({
             const userName = userData.userName;
             if (!userName) continue;
 
+            const userRoutineForEvent = userData.routines[selectedEvent] || [];
+            const dismountSkillFromRoutine = userRoutineForEvent.length >= 8 ? userRoutineForEvent[7] : null;
+
             let eventSubmissions = userData.submissions.filter(sub => sub.event === selectedEvent);
             if (cutoffDate) {
                 eventSubmissions = eventSubmissions.filter(sub => isAfter(new Date(sub.timestamp), cutoffDate));
@@ -140,9 +143,11 @@ export function DeductionBreakdownDialog({
 
             for (const submission of eventSubmissions) {
                 if (compareDismounts) {
-                    submission.skills.forEach((skill, index) => {
-                        const isDismount = skill.name.toLowerCase().includes('dismount') || index === 7;
-                        if (isDismount && typeof skill.deduction === 'number') {
+                    submission.skills.forEach((skill) => {
+                        const isDismountByName = skill.name.toLowerCase().includes('dismount');
+                        const isEighthSkillInRoutine = dismountSkillFromRoutine && skill.name === dismountSkillFromRoutine.name;
+                        
+                        if ((isDismountByName || isEighthSkillInRoutine) && typeof skill.deduction === 'number') {
                             if (!userDeductions[userId]) {
                                 userDeductions[userId] = { name: userName, deductions: [], skillName: skill.name };
                             }
