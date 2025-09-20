@@ -45,7 +45,7 @@ interface DeductionBreakdownDialogProps {
 }
 
 type UserScope = 'currentUser' | 'allUsers';
-type ViewMode = 'breakdown' | 'comparison';
+type ViewMode = 'breakdown' | 'comparison' | 'sticks';
 
 export function DeductionBreakdownDialog({
   isOpen,
@@ -133,7 +133,7 @@ export function DeductionBreakdownDialog({
       });
 
       return averages.sort((a, b) => b.averageDeduction - a.averageDeduction);
-    } else { // Comparison mode
+    } else if (viewMode === 'comparison') {
         const userSkillDeductions: Record<string, { userName: string, skillName: string, deductions: number[] }> = {};
 
         for (const userId in allUsersData) {
@@ -193,6 +193,59 @@ export function DeductionBreakdownDialog({
         }).filter(item => item !== null) as { name: string, averageDeduction: number }[];
 
         return comparisonAverages.sort((a, b) => b.averageDeduction - a.averageDeduction);
+    } else { // Sticks mode
+        const userStickData: Record<string, { userName: string, totalDismounts: number, stuckDismounts: number }> = {};
+
+        for (const userId in allUsersData) {
+            const userData = allUsersData[userId];
+            const userName = userData.userName;
+            if (!userName) continue;
+            
+            if (!userStickData[userId]) {
+                userStickData[userId] = { userName, totalDismounts: 0, stuckDismounts: 0 };
+            }
+
+            const userRoutineForEvent = userData.routines[selectedEvent] || [];
+            const dismountSkillFromRoutine = userRoutineForEvent.length >= 8 ? userRoutineForEvent[7] : null;
+
+            let eventSubmissions = userData.submissions.filter(sub => sub.event === selectedEvent);
+            if (routinesOnly) {
+              eventSubmissions = eventSubmissions.filter(sub => sub.isComplete);
+            }
+            if (cutoffDate) {
+                eventSubmissions = eventSubmissions.filter(sub => isAfter(new Date(sub.timestamp), cutoffDate));
+            }
+
+            for (const submission of eventSubmissions) {
+                let dismountInSubmission = false;
+                submission.skills.forEach(skill => {
+                    const isDismountByName = skill.name.toLowerCase().includes('dismount');
+                    const isEighthSkillInRoutine = dismountSkillFromRoutine && skill.name === dismountSkillFromRoutine.name;
+                    if (isDismountByName || isEighthSkillInRoutine) {
+                        dismountInSubmission = true;
+                    }
+                });
+
+                if (dismountInSubmission) {
+                    userStickData[userId].totalDismounts++;
+                    if (submission.stuckDismount) {
+                        userStickData[userId].stuckDismounts++;
+                    }
+                }
+            }
+        }
+        
+        const stickPercentages = Object.values(userStickData)
+            .filter(data => data.totalDismounts > 0)
+            .map(({ userName, totalDismounts, stuckDismounts }) => {
+                const percentage = (stuckDismounts / totalDismounts) * 100;
+                return {
+                    name: userName,
+                    stickPercentage: parseFloat(percentage.toFixed(1))
+                };
+            });
+
+        return stickPercentages.sort((a, b) => b.stickPercentage - a.stickPercentage);
     }
   }, [viewMode, selectedEvent, userScope, allUsersData, selectedUserId, cutoffDate, selectedSkill, compareDismounts, routinesOnly]);
   
@@ -215,9 +268,10 @@ export function DeductionBreakdownDialog({
           </DialogDescription>
         </DialogHeader>
         <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as ViewMode)} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="breakdown">Overall Breakdown</TabsTrigger>
                 <TabsTrigger value="comparison">Skill Comparison (Between Users)</TabsTrigger>
+                <TabsTrigger value="sticks">Sticks</TabsTrigger>
             </TabsList>
             <TabsContent value="breakdown">
                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6 py-4">
@@ -439,6 +493,99 @@ export function DeductionBreakdownDialog({
                         ) : (
                         <div className="flex items-center justify-center h-full text-muted-foreground">
                             {selectedSkill || compareDismounts ? 'No data available for this selection.' : 'Please select a skill to compare.'}
+                        </div>
+                        )}
+                    </div>
+                </div>
+            </TabsContent>
+            <TabsContent value="sticks">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 py-4">
+                    <div className="md:col-span-1 space-y-6">
+                        {/* Filters */}
+                         <div className="space-y-2">
+                          <Label htmlFor="event-filter-sticks">Event</Label>
+                          <Select value={selectedEvent} onValueChange={setSelectedEvent}>
+                            <SelectTrigger id="event-filter-sticks">
+                              <SelectValue placeholder="Select an event" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {EVENTS.map(event => (
+                                <SelectItem key={event} value={event}>
+                                  {event}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                         <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="routines-only-sticks">Routines Only</Label>
+                                <Switch
+                                id="routines-only-sticks"
+                                checked={routinesOnly}
+                                onCheckedChange={setRoutinesOnly}
+                                />
+                            </div>
+                           <div className="flex items-center justify-between">
+                             <Label htmlFor="time-filter-switch-sticks">All Time</Label>
+                             <Switch
+                               id="time-filter-switch-sticks"
+                               checked={!useTimeFilter}
+                               onCheckedChange={(checked) => setUseTimeFilter(!checked)}
+                             />
+                           </div>
+                           {useTimeFilter && (
+                             <div className="space-y-2">
+                               <Label>Past {timeFilterDays} Days</Label>
+                               <Slider
+                                value={[timeFilterDays]}
+                                onValueChange={(value) => setTimeFilterDays(value[0])}
+                                min={1}
+                                max={90}
+                                step={1}
+                              />
+                             </div>
+                           )}
+                        </div>
+                    </div>
+                    <div className="md:col-span-3 h-96">
+                        {/* Chart */}
+                         {chartData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                            data={chartData}
+                            layout="vertical"
+                            margin={{ top: 20, right: 40, left: 20, bottom: 5 }}
+                            >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis type="number" domain={[0, 100]} unit="%" />
+                            <YAxis
+                                dataKey="name"
+                                type="category"
+                                width={150}
+                                tick={{ fontSize: 12 }}
+                                style={{
+                                    overflow: 'visible',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                            />
+                            <Tooltip
+                                contentStyle={{
+                                background: 'hsl(var(--background))',
+                                border: '1px solid hsl(var(--border))',
+                                borderRadius: 'var(--radius)',
+                                }}
+                                cursor={{ fill: 'hsl(var(--muted))' }}
+                                formatter={(value) => `${value}%`}
+                            />
+                            <Bar dataKey="stickPercentage" name="Stick %" fill="hsl(var(--primary))">
+                                <LabelList dataKey="stickPercentage" position="right" style={{ fill: 'hsl(var(--foreground))' }} formatter={(value: number) => `${value}%`}/>
+                            </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                        ) : (
+                        <div className="flex items-center justify-center h-full text-muted-foreground">
+                            No dismount data available for this selection.
                         </div>
                         )}
                     </div>
