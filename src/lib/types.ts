@@ -13,6 +13,7 @@ export type SubmissionSkill = {
   name: string;
   value: number | '';
   deduction: number | '';
+  isDismount: boolean;
 };
 
 export type Submission = {

@@ -10,7 +10,7 @@ import { format } from 'date-fns';
 
 export async function getOptimizedDeductions(
   event: string,
-  skills: SubmissionSkill[]
+  skills: (SubmissionSkill | { name: string; value: number | ''; deduction: number | '' | 'N/A' })[]
 ) {
   try {
     const input: OptimizeRoutineDeductionsInput = {
@@ -51,6 +51,7 @@ export async function downloadDataAsExcel(data: AppData): Promise<string> {
                   'Skill': skill.name,
                   'Value': skill.value,
                   'Deduction': skill.deduction,
+                  'Is Dismount': skill.isDismount ? 'Yes' : 'No',
                   'Routine Complete': sub.isComplete ? 'Yes' : 'No'
               });
           });

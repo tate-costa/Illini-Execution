@@ -169,6 +169,12 @@ export function SubmitRoutineDialog({
     
     // Filter to only include skills where a deduction was entered.
     const skillsToSave = values.skills
+      .map((skill, index) => ({
+        ...skill,
+        isDismount:
+          (index === 7 && selectedEvent !== 'VT') ||
+          skill.name.toLowerCase().includes('dismount'),
+      }))
       .filter(s => s.deduction !== '' && s.deduction !== 'N/A')
       .map(({id, ...rest}) => ({
           ...rest,
