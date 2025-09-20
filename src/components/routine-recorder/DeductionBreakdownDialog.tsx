@@ -217,7 +217,7 @@ export function DeductionBreakdownDialog({
         <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as ViewMode)} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="breakdown">Overall Breakdown</TabsTrigger>
-                <TabsTrigger value="comparison">Skill Comparison</TabsTrigger>
+                <TabsTrigger value="comparison">Skill Comparison (Between Users)</TabsTrigger>
             </TabsList>
             <TabsContent value="breakdown">
                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6 py-4">
