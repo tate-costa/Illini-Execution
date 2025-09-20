@@ -33,30 +33,35 @@ export function RoutineRecorder() {
   }, []);
 
   useEffect(() => {
+    let isSubscribed = true;
     let unsubscribe: (() => void) | undefined;
-
+  
     if (selectedUserId) {
-        const userDocRef = doc(db, 'userData', selectedUserId);
-        unsubscribe = onSnapshot(userDocRef, (doc) => {
-            if (doc.exists()) {
-                setCurrentUserData(doc.data() as UserData);
-            } else {
-                const newName = USERS.find(u => u.id === selectedUserId)?.name;
-                const newUser: UserData = { ...initialUserData, userName: newName || '' };
-                setCurrentUserData(newUser);
-                updateFirestore(selectedUserId, newUser);
-            }
-        });
-    } else {
-        setCurrentUserData(null);
-    }
-    
-    return () => {
-        if (unsubscribe) {
-            unsubscribe();
+      const userDocRef = doc(db, 'userData', selectedUserId);
+      unsubscribe = onSnapshot(userDocRef, (doc) => {
+        if (!isSubscribed) return;
+  
+        if (doc.exists()) {
+          setCurrentUserData(doc.data() as UserData);
+        } else {
+          // This happens when a user is selected for the first time.
+          // We create a document for them.
+          const newName = USERS.find((u) => u.id === selectedUserId)?.name;
+          const newUser: UserData = { ...initialUserData, userName: newName || '' };
+          setCurrentUserData(newUser);
+          updateFirestore(selectedUserId, newUser);
         }
+      });
+    } else {
+      setCurrentUserData(null);
+    }
+  
+    return () => {
+      isSubscribed = false;
+      if (unsubscribe) {
+        unsubscribe();
+      }
     };
-
   }, [selectedUserId]);
 
 
@@ -93,6 +98,7 @@ export function RoutineRecorder() {
         ...currentUserData,
         routines: routines
     };
+    setCurrentUserData(updatedUserData);
     updateFirestore(selectedUserId, updatedUserData);
     setIsEditOpen(false);
   };
