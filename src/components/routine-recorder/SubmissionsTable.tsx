@@ -52,6 +52,7 @@ export function SubmissionsTable({ submissions, onDelete }: SubmissionsTableProp
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
   const [useTimeFilter, setUseTimeFilter] = useState(true);
   const [timeFilterDays, setTimeFilterDays] = useState(30);
+  const [showRoutinesOnly, setShowRoutinesOnly] = useState(false);
 
   const filteredAndSortedSubmissions = useMemo(() => {
     let filtered = submissions;
@@ -64,30 +65,37 @@ export function SubmissionsTable({ submissions, onDelete }: SubmissionsTableProp
       const cutoffDate = subDays(new Date(), timeFilterDays);
       filtered = filtered.filter(sub => isAfter(new Date(sub.timestamp), cutoffDate));
     }
+    
+    if (showRoutinesOnly) {
+      filtered = filtered.filter(sub => sub.isComplete);
+    }
 
     return filtered.sort((a, b) => {
       const dateA = new Date(a.timestamp).getTime();
       const dateB = new Date(b.timestamp).getTime();
       return sortOrder === 'newest' ? dateB - dateA : dateA - b.timestamp;
     });
-  }, [submissions, eventFilter, sortOrder, useTimeFilter, timeFilterDays]);
+  }, [submissions, eventFilter, sortOrder, useTimeFilter, timeFilterDays, showRoutinesOnly]);
 
   return (
     <Card className="shadow-lg">
       <CardHeader>
         <CardTitle>Recent Submissions</CardTitle>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-4 items-end">
-          <Select value={eventFilter} onValueChange={setEventFilter}>
-            <SelectTrigger>
-              <SelectValue placeholder="Filter by event" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Events</SelectItem>
-              {EVENTS.map(event => (
-                <SelectItem key={event} value={event}>{event}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="space-y-2">
+            <Label htmlFor="event-filter-table">Event</Label>
+            <Select value={eventFilter} onValueChange={setEventFilter}>
+              <SelectTrigger id="event-filter-table">
+                <SelectValue placeholder="Filter by event" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Events</SelectItem>
+                {EVENTS.map(event => (
+                  <SelectItem key={event} value={event}>{event}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="space-y-3">
              <div className="flex items-center justify-between">
                <Label htmlFor="time-filter-switch-table">All Time</Label>
@@ -110,15 +118,26 @@ export function SubmissionsTable({ submissions, onDelete }: SubmissionsTableProp
                </div>
              )}
           </div>
-          <Select value={sortOrder} onValueChange={(value) => setSortOrder(value as SortOrder)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Sort by date" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="newest">Newest First</SelectItem>
-              <SelectItem value="oldest">Oldest First</SelectItem>
-            </SelectContent>
-          </Select>
+           <div className="space-y-2">
+            <Label htmlFor="sort-order-table">Sort Order</Label>
+            <Select value={sortOrder} onValueChange={(value) => setSortOrder(value as SortOrder)}>
+              <SelectTrigger id="sort-order-table">
+                <SelectValue placeholder="Sort by date" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest First</SelectItem>
+                <SelectItem value="oldest">Oldest First</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="flex items-center space-x-2 pt-4">
+            <Switch
+                id="routines-only-switch-table"
+                checked={showRoutinesOnly}
+                onCheckedChange={setShowRoutinesOnly}
+            />
+            <Label htmlFor="routines-only-switch-table">Show Routines Only</Label>
         </div>
       </CardHeader>
       <CardContent>

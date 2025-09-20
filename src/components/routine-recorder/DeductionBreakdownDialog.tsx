@@ -61,6 +61,7 @@ export function DeductionBreakdownDialog({
   const [timeFilterDays, setTimeFilterDays] = useState(30);
   const [selectedSkill, setSelectedSkill] = useState<string | undefined>();
   const [compareDismounts, setCompareDismounts] = useState(false);
+  const [routinesOnly, setRoutinesOnly] = useState(false);
 
   const cutoffDate = useMemo(() => {
     return useTimeFilter ? subDays(new Date(), timeFilterDays) : null;
@@ -72,6 +73,10 @@ export function DeductionBreakdownDialog({
       for (const userId in allUsersData) {
         const userData = allUsersData[userId];
         let eventSubmissions = userData.submissions.filter(sub => sub.event === selectedEvent);
+
+        if (routinesOnly) {
+          eventSubmissions = eventSubmissions.filter(sub => sub.isComplete);
+        }
         if (cutoffDate) {
           eventSubmissions = eventSubmissions.filter(sub => isAfter(new Date(sub.timestamp), cutoffDate));
         }
@@ -89,7 +94,7 @@ export function DeductionBreakdownDialog({
         setSelectedSkill(undefined);
       }
       return skills;
-  }, [viewMode, allUsersData, selectedEvent, cutoffDate, selectedSkill]);
+  }, [viewMode, allUsersData, selectedEvent, cutoffDate, selectedSkill, routinesOnly]);
 
 
   const chartData = useMemo(() => {
@@ -105,6 +110,9 @@ export function DeductionBreakdownDialog({
         if (!userData) continue;
 
         let eventSubmissions = userData.submissions.filter(sub => sub.event === selectedEvent);
+        if (routinesOnly) {
+          eventSubmissions = eventSubmissions.filter(sub => sub.isComplete);
+        }
         if (cutoffDate) {
           eventSubmissions = eventSubmissions.filter(sub => isAfter(new Date(sub.timestamp), cutoffDate));
         }
@@ -137,6 +145,9 @@ export function DeductionBreakdownDialog({
             const dismountSkillFromRoutine = userRoutineForEvent.length >= 8 ? userRoutineForEvent[7] : null;
 
             let eventSubmissions = userData.submissions.filter(sub => sub.event === selectedEvent);
+            if (routinesOnly) {
+              eventSubmissions = eventSubmissions.filter(sub => sub.isComplete);
+            }
             if (cutoffDate) {
                 eventSubmissions = eventSubmissions.filter(sub => isAfter(new Date(sub.timestamp), cutoffDate));
             }
@@ -177,7 +188,7 @@ export function DeductionBreakdownDialog({
 
         return comparisonAverages.sort((a, b) => b.averageDeduction - a.averageDeduction);
     }
-  }, [viewMode, selectedEvent, userScope, allUsersData, selectedUserId, cutoffDate, selectedSkill, compareDismounts]);
+  }, [viewMode, selectedEvent, userScope, allUsersData, selectedUserId, cutoffDate, selectedSkill, compareDismounts, routinesOnly]);
   
   // Effect to reset skill selection when event changes
   useEffect(() => {
@@ -221,7 +232,15 @@ export function DeductionBreakdownDialog({
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="space-y-4">
+                         <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="routines-only-breakdown">Routines Only</Label>
+                                <Switch
+                                id="routines-only-breakdown"
+                                checked={routinesOnly}
+                                onCheckedChange={setRoutinesOnly}
+                                />
+                            </div>
                            <div className="flex items-center justify-between">
                              <Label htmlFor="time-filter-switch-breakdown">All Time</Label>
                              <Switch
@@ -346,7 +365,15 @@ export function DeductionBreakdownDialog({
                               </Select>
                             </div>
                         </div>
-                        <div className="space-y-4">
+                         <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="routines-only-comparison">Routines Only</Label>
+                                <Switch
+                                id="routines-only-comparison"
+                                checked={routinesOnly}
+                                onCheckedChange={setRoutinesOnly}
+                                />
+                            </div>
                            <div className="flex items-center justify-between">
                              <Label htmlFor="time-filter-switch-comparison">All Time</Label>
                              <Switch
@@ -416,5 +443,3 @@ export function DeductionBreakdownDialog({
     </Dialog>
   );
 }
-
-    
