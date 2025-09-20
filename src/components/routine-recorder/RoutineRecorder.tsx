@@ -33,35 +33,26 @@ export function RoutineRecorder() {
   }, []);
 
   useEffect(() => {
-    let isSubscribed = true;
-    let unsubscribe: (() => void) | undefined;
-  
-    if (selectedUserId) {
-      const userDocRef = doc(db, 'userData', selectedUserId);
-      unsubscribe = onSnapshot(userDocRef, (doc) => {
-        if (!isSubscribed) return;
-  
-        if (doc.exists()) {
-          setCurrentUserData(doc.data() as UserData);
-        } else {
-          // This happens when a user is selected for the first time.
-          // We create a document for them.
-          const newName = USERS.find((u) => u.id === selectedUserId)?.name;
-          const newUser: UserData = { ...initialUserData, userName: newName || '' };
-          setCurrentUserData(newUser);
-          updateFirestore(selectedUserId, newUser);
-        }
-      });
-    } else {
-      setCurrentUserData(null);
+    if (!selectedUserId) {
+        setCurrentUserData(null);
+        return;
     }
-  
-    return () => {
-      isSubscribed = false;
-      if (unsubscribe) {
-        unsubscribe();
-      }
-    };
+
+    const userDocRef = doc(db, 'userData', selectedUserId);
+    const unsubscribe = onSnapshot(userDocRef, (doc) => {
+        if (doc.exists()) {
+            setCurrentUserData(doc.data() as UserData);
+        } else {
+            // If the document doesn't exist, it means this is a new user.
+            // We'll set local state, and the document will be created upon the first data save.
+            const newName = USERS.find((u) => u.id === selectedUserId)?.name;
+            const newUser: UserData = { ...initialUserData, userName: newName || '' };
+            setCurrentUserData(newUser);
+        }
+    });
+
+    // Cleanup subscription on component unmount or when selectedUserId changes
+    return () => unsubscribe();
   }, [selectedUserId]);
 
 
