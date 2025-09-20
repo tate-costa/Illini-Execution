@@ -12,10 +12,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { SubmissionsTable } from './SubmissionsTable';
 import { DeductionBreakdownDialog } from './DeductionBreakdownDialog';
 import { Download } from 'lucide-react';
-import * as XLSX from 'xlsx';
-import { format } from 'date-fns';
+import { downloadDataAsExcel } from '@/app/actions';
+import { useToast } from '@/hooks/use-toast';
 
-const initialUserData: Omit<UserData, 'userName'> = { routines: {}, submissions: [] };
 
 export function RoutineRecorder() {
   const [data, setData] = useLocalStorage<AppData>('routine-recorder-data', {});
@@ -23,6 +22,7 @@ export function RoutineRecorder() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
   const [isBreakdownOpen, setIsBreakdownOpen] = useState(false);
+  const { toast } = useToast();
 
   const selectedUserName = useMemo(() => {
     return USERS.find(user => user.id === selectedUserId)?.name;
@@ -90,47 +90,22 @@ export function RoutineRecorder() {
     }
   };
   
-  const handleDownload = () => {
-    const wb = XLSX.utils.book_new();
-
-    // Submissions Sheet
-    const submissionsData: any[] = [];
-    Object.values(data).forEach(userData => {
-        userData.submissions.forEach(sub => {
-            sub.skills.forEach(skill => {
-                submissionsData.push({
-                    'User Name': userData.userName,
-                    'Event': sub.event,
-                    'Date': format(new Date(sub.timestamp), "yyyy-MM-dd HH:mm:ss"),
-                    'Skill': skill.name,
-                    'Value': skill.value,
-                    'Deduction': skill.deduction,
-                    'Routine Complete': sub.isComplete ? 'Yes' : 'No'
-                });
-            });
-        });
-    });
-    const submissionsWs = XLSX.utils.json_to_sheet(submissionsData);
-    XLSX.utils.book_append_sheet(wb, submissionsWs, "Submissions");
-    
-     // Routines Sheet
-    const routinesData: any[] = [];
-    Object.values(data).forEach(userData => {
-        Object.entries(userData.routines).forEach(([event, skills]) => {
-            skills.forEach(skill => {
-                routinesData.push({
-                    'User Name': userData.userName,
-                    'Event': event,
-                    'Skill': skill.name,
-                    'Value': skill.value,
-                });
-            });
-        });
-    });
-    const routinesWs = XLSX.utils.json_to_sheet(routinesData);
-    XLSX.utils.book_append_sheet(wb, routinesWs, "Routines");
-
-    XLSX.writeFile(wb, "RoutineRecorder_Data.xlsx");
+  const handleDownload = async () => {
+    try {
+      const base64 = await downloadDataAsExcel(data);
+      const link = document.createElement('a');
+      link.href = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${base64}`;
+      link.download = 'RoutineRecorder_Data.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Download Failed',
+        description: 'Could not generate the Excel file. Please try again.',
+      });
+    }
   };
 
   return (
@@ -227,3 +202,5 @@ export function RoutineRecorder() {
     </div>
   );
 }
+
+const initialUserData: Omit<UserData, 'userName'> = { routines: {}, submissions: [] };
