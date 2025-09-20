@@ -34,6 +34,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EVENTS } from '@/lib/constants';
 import type { AppData } from '@/lib/types';
 import { subDays, isAfter } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface DeductionBreakdownDialogProps {
   isOpen: boolean;
@@ -399,3 +400,4 @@ export function DeductionBreakdownDialog({
   );
 }
 
+    
