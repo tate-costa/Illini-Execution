@@ -94,7 +94,7 @@ export function DeductionBreakdownDialog({
         setSelectedSkill(undefined);
       }
       return skills;
-  }, [viewMode, allUsersData, selectedEvent, cutoffDate, selectedSkill, routinesOnly]);
+  }, [viewMode, allUsersData, selectedEvent, cutoffDate, routinesOnly]);
 
 
   const chartData = useMemo(() => {
@@ -243,7 +243,7 @@ export function DeductionBreakdownDialog({
     } else {
         setSelectedSkill(undefined);
     }
-  }, [selectedEvent, allSkillsInEvent, viewMode]);
+  }, [selectedEvent, viewMode, allSkillsInEvent.length]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
