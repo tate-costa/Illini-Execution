@@ -30,10 +30,7 @@ import {
   } from "@/components/ui/popover"
 import type { UserRoutines, SubmissionSkill } from '@/lib/types';
 import { ScrollArea } from '../ui/scroll-area';
-import { getOptimizedDeductions } from '@/app/actions';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Replace } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { Replace } from 'lucide-react';
 import { Checkbox } from '../ui/checkbox';
 
 interface SubmitRoutineDialogProps {
@@ -62,20 +59,16 @@ export function SubmitRoutineDialog({
   onSave,
 }: SubmitRoutineDialogProps) {
   const [selectedEvent, setSelectedEvent] = useState<string | undefined>();
-  const [isOptimizing, setIsOptimizing] = useState(false);
-  const [optimizations, setOptimizations] = useState<Record<string, string>>({});
-  const { toast } = useToast();
   
   const availableEvents = Object.keys(userRoutines).filter(key => userRoutines[key].length > 0);
 
-  const { primarySkills, alternateSkills } = useMemo(() => {
+  const { alternateSkills } = useMemo(() => {
     if (!selectedEvent || !userRoutines[selectedEvent]) {
-      return { primarySkills: [], alternateSkills: [] };
+      return { alternateSkills: [] };
     }
     const allSkills = userRoutines[selectedEvent];
     const skillCount = selectedEvent === 'VT' ? 2 : 8;
     return {
-      primarySkills: allSkills.slice(0, skillCount),
       alternateSkills: allSkills.slice(skillCount),
     };
   }, [selectedEvent, userRoutines]);
@@ -104,7 +97,6 @@ export function SubmitRoutineDialog({
         deduction: 'N/A',
       }));
       replace(newSkills);
-      setOptimizations({});
     } else {
         replace([]);
     }
@@ -134,37 +126,6 @@ export function SubmitRoutineDialog({
         value: newSkill.value,
         deduction: 'N/A', // Reset deduction on swap
     });
-  };
-
-  const handleOptimize = async () => {
-    if (!selectedEvent) return;
-    setIsOptimizing(true);
-    setOptimizations({});
-    try {
-      const currentSkills = form.getValues().skills;
-      const result = await getOptimizedDeductions(selectedEvent, currentSkills);
-      
-      if(result.optimizedSkills.length === 0) {
-        toast({ title: "No optimizations available", description: "Your routine is already looking good or has no deductions to optimize." });
-        return;
-      }
-
-      const newOptimizations: Record<string, string> = {};
-      result.optimizedSkills.forEach(optSkill => {
-        const index = currentSkills.findIndex(s => s.name === optSkill.skill);
-        if (index !== -1) {
-          form.setValue(`skills.${index}.deduction`, optSkill.deduction);
-          form.setValue(`skills.${index}.value`, optSkill.value);
-          newOptimizations[optSkill.skill] = optSkill.explanation;
-        }
-      });
-      setOptimizations(newOptimizations);
-      toast({ title: "Routine Optimized!", description: "AI suggestions have been applied to your routine." });
-    } catch (error) {
-      toast({ variant: 'destructive', title: "Optimization Failed", description: "Could not get AI optimizations. Please try again." });
-    } finally {
-      setIsOptimizing(false);
-    }
   };
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
@@ -199,7 +160,6 @@ export function SubmitRoutineDialog({
     };
     onSave(submission);
     form.reset();
-    setOptimizations({});
   };
 
   return (
@@ -309,26 +269,13 @@ export function SubmitRoutineDialog({
                         />
                     )}
                   </div>
-                  {optimizations[field.name] && (
-                     <Alert className="mt-2 bg-primary/10 border-primary/20">
-                       <Sparkles className="h-4 w-4 text-primary" />
-                       <AlertTitle className="text-primary font-semibold">AI Suggestion</AlertTitle>
-                       <AlertDescription className="text-primary/80">
-                         {optimizations[field.name]}
-                       </AlertDescription>
-                     </Alert>
-                  )}
                 </div>
               ))}
             </div>
             </ScrollArea>
           )}
 
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button type="button" variant="outline" onClick={handleOptimize} disabled={isOptimizing || !selectedEvent}>
-              {isOptimizing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Sparkles className="mr-2 h-4 w-4" />}
-              Optimize with AI
-            </Button>
+          <DialogFooter>
             <Button type="submit" disabled={!selectedEvent}>Submit</Button>
           </DialogFooter>
         </form>
