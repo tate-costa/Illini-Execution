@@ -140,16 +140,16 @@ export function DeductionBreakdownDialog({
 
             for (const submission of eventSubmissions) {
                 if (compareDismounts) {
-                    // Find a skill that is a dismount (either by name or position 8)
-                    const dismount = submission.skills.find((s, index) => 
-                        (s.name.toLowerCase().includes('dismount') || index === 7) && typeof s.deduction === 'number'
-                    );
-
-                    if (dismount) {
-                        if (!userDeductions[userId]) userDeductions[userId] = { name: userName, deductions: [], skillName: dismount.name };
-                        userDeductions[userId].deductions.push(dismount.deduction as number);
-                        userDeductions[userId].skillName = dismount.name; // Update skill name to the one found
-                    }
+                    submission.skills.forEach((skill, index) => {
+                        const isDismount = skill.name.toLowerCase().includes('dismount') || index === 7;
+                        if (isDismount && typeof skill.deduction === 'number') {
+                            if (!userDeductions[userId]) {
+                                userDeductions[userId] = { name: userName, deductions: [], skillName: skill.name };
+                            }
+                            userDeductions[userId].deductions.push(skill.deduction);
+                            userDeductions[userId].skillName = skill.name; 
+                        }
+                    });
                 } else {
                     if (!selectedSkill) continue;
                     for (const skill of submission.skills) {
