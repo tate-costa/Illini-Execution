@@ -140,15 +140,12 @@ export function DeductionBreakdownDialog({
 
             for (const submission of eventSubmissions) {
                 if (compareDismounts) {
-                    if (submission.skills.length >= 8) {
-                        // Dismount is the 8th skill (index 7)
-                        const dismount = submission.skills[7];
-                        if (dismount && typeof dismount.deduction === 'number') {
-                            if (!userDeductions[userId]) userDeductions[userId] = { name: userName, deductions: [], skillName: dismount.name };
-                            userDeductions[userId].deductions.push(dismount.deduction);
-                            // Update skill name in case it changed for the same user
-                            userDeductions[userId].skillName = dismount.name;
-                        }
+                    // Dismount is the 8th skill (index 7)
+                    const dismount = submission.skills.find(s => s.name.toLowerCase().includes('dismount') || submission.skills.indexOf(s) === 7);
+                    if (dismount && typeof dismount.deduction === 'number') {
+                        if (!userDeductions[userId]) userDeductions[userId] = { name: userName, deductions: [], skillName: dismount.name };
+                        userDeductions[userId].deductions.push(dismount.deduction);
+                        userDeductions[userId].skillName = dismount.name;
                     }
                 } else {
                     if (!selectedSkill) continue;
@@ -268,7 +265,7 @@ export function DeductionBreakdownDialog({
                             <YAxis
                                 dataKey="name"
                                 type="category"
-                                width={100}
+                                width={150}
                                 tick={{ fontSize: 12 }}
                                 style={{
                                     overflow: 'visible',
