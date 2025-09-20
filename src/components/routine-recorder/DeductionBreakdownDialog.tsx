@@ -141,9 +141,6 @@ export function DeductionBreakdownDialog({
             const userName = userData.userName;
             if (!userName) continue;
 
-            const userRoutineForEvent = userData.routines[selectedEvent] || [];
-            const dismountSkillFromRoutine = userRoutineForEvent.length >= 8 ? userRoutineForEvent[7] : null;
-
             let eventSubmissions = userData.submissions.filter(sub => sub.event === selectedEvent);
             if (routinesOnly) {
               eventSubmissions = eventSubmissions.filter(sub => sub.isComplete);
@@ -155,10 +152,7 @@ export function DeductionBreakdownDialog({
             for (const submission of eventSubmissions) {
                 if (compareDismounts) {
                     submission.skills.forEach((skill) => {
-                        const isDismountByName = skill.name.toLowerCase().includes('dismount');
-                        const isEighthSkillInRoutine = dismountSkillFromRoutine && skill.name === dismountSkillFromRoutine.name;
-                        
-                        if ((isDismountByName || isEighthSkillInRoutine) && typeof skill.deduction === 'number') {
+                        if (skill.isDismount && typeof skill.deduction === 'number') {
                             const key = `${userId}-${skill.name}`;
                             if (!userSkillDeductions[key]) {
                                 userSkillDeductions[key] = { userName, skillName: skill.name, deductions: [] };
@@ -201,9 +195,6 @@ export function DeductionBreakdownDialog({
             const userName = userData.userName;
             if (!userName) continue;
             
-            const userRoutineForEvent = userData.routines[selectedEvent] || [];
-            const dismountSkillFromRoutine = userRoutineForEvent.length >= 8 ? userRoutineForEvent[7] : null;
-
             let eventSubmissions = userData.submissions.filter(sub => sub.event === selectedEvent);
             if (routinesOnly) {
               eventSubmissions = eventSubmissions.filter(sub => sub.isComplete);
@@ -214,10 +205,7 @@ export function DeductionBreakdownDialog({
 
             for (const submission of eventSubmissions) {
                 submission.skills.forEach(skill => {
-                    const isDismountByName = skill.name.toLowerCase().includes('dismount');
-                    const isEighthSkillInRoutine = dismountSkillFromRoutine && skill.name === dismountSkillFromRoutine.name;
-
-                    if (isDismountByName || isEighthSkillInRoutine) {
+                    if (skill.isDismount) {
                         const key = `${userId}-${skill.name}`; // Key by user and dismount skill name
                         if (!userStickData[key]) {
                             userStickData[key] = { userName, skillName: skill.name, totalDismounts: 0, stuckDismounts: 0 };
