@@ -6,7 +6,7 @@
 
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
-import { NextJsAuth, nextJsAuth } from '@genkit-ai/next/auth';
+import { type NextJsAuth, nextJsAuth } from '@genkit-ai/next';
 import { defineString } from 'genkit/experimental/plugins';
 
 // Initialize the Genkit plugin.

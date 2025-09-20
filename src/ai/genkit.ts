@@ -6,7 +6,7 @@
 
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
-import { NextJsAuth, nextJsAuth } from '@genkit-ai/next/auth';
+import { nextJsAuth } from '@genkit-ai/next';
 
 export const ai = genkit({
   plugins: [
