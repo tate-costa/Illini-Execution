@@ -134,7 +134,7 @@ export function DeductionBreakdownDialog({
 
       return averages.sort((a, b) => b.averageDeduction - a.averageDeduction);
     } else { // Comparison mode
-        const userDeductions: Record<string, {name: string, deductions: number[], skillName?: string}> = {};
+        const userSkillDeductions: Record<string, { userName: string, skillName: string, deductions: number[] }> = {};
 
         for (const userId in allUsersData) {
             const userData = allUsersData[userId];
@@ -159,30 +159,36 @@ export function DeductionBreakdownDialog({
                         const isEighthSkillInRoutine = dismountSkillFromRoutine && skill.name === dismountSkillFromRoutine.name;
                         
                         if ((isDismountByName || isEighthSkillInRoutine) && typeof skill.deduction === 'number') {
-                            if (!userDeductions[userId]) {
-                                userDeductions[userId] = { name: userName, deductions: [], skillName: skill.name };
+                            const key = `${userId}-${skill.name}`;
+                            if (!userSkillDeductions[key]) {
+                                userSkillDeductions[key] = { userName, skillName: skill.name, deductions: [] };
                             }
-                            userDeductions[userId].deductions.push(skill.deduction);
-                            userDeductions[userId].skillName = skill.name; 
+                            userSkillDeductions[key].deductions.push(skill.deduction);
                         }
                     });
                 } else {
                     if (!selectedSkill) continue;
                     for (const skill of submission.skills) {
                         if (skill.name === selectedSkill && typeof skill.deduction === 'number') {
-                            if (!userDeductions[userId]) userDeductions[userId] = { name: userName, deductions: [] };
-                            userDeductions[userId].deductions.push(skill.deduction);
+                            const key = `${userId}-${skill.name}`; // Key by user and skill for consistency
+                            if (!userSkillDeductions[key]) {
+                                userSkillDeductions[key] = { userName, skillName: skill.name, deductions: [] };
+                            }
+                            userSkillDeductions[key].deductions.push(skill.deduction);
                         }
                     }
                 }
             }
         }
         
-        const comparisonAverages = Object.values(userDeductions).map(({name, deductions, skillName}) => {
+        const comparisonAverages = Object.values(userSkillDeductions).map(({ userName, skillName, deductions }) => {
             if (deductions.length === 0) return null;
             const sum = deductions.reduce((a, b) => a + b, 0);
             const average = sum / deductions.length;
-            const displayName = skillName ? `${name} (${skillName})` : name;
+            
+            // Only show skill name in label if comparing dismounts, otherwise it's redundant.
+            const displayName = compareDismounts ? `${userName} (${skillName})` : userName;
+
             return { name: displayName, averageDeduction: parseFloat(average.toFixed(2)) };
         }).filter(item => item !== null) as { name: string, averageDeduction: number }[];
 
