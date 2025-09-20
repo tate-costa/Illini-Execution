@@ -106,6 +106,7 @@ export function RoutineRecorder() {
         ...currentUserData,
         submissions: newSubmissions,
     };
+    setCurrentUserData(updatedUserData);
     updateFirestore(selectedUserId, updatedUserData);
     setIsSubmitOpen(false);
   };
@@ -117,6 +118,7 @@ export function RoutineRecorder() {
         ...currentUserData,
         submissions: updatedSubmissions
     };
+    setCurrentUserData(updatedUserData);
     updateFirestore(selectedUserId, updatedUserData);
   };
 
