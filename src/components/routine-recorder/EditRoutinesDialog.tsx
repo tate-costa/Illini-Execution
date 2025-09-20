@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -81,6 +82,7 @@ export function EditRoutinesDialog({
     const updatedRoutines = { ...userRoutines };
     updatedRoutines[selectedEvent] = values.skills.filter(skill => skill.name && skill.value !== '');
     onSave(selectedEvent, updatedRoutines);
+    onOpenChange(false); // Close the dialog on successful save
   };
   
   const addSkill = () => {
