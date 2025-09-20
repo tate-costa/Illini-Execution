@@ -202,19 +202,21 @@ export function DeductionBreakdownDialog({
             if (cutoffDate) {
                 eventSubmissions = eventSubmissions.filter(sub => isAfter(new Date(sub.timestamp), cutoffDate));
             }
-
+            
             for (const submission of eventSubmissions) {
-                submission.skills.forEach(skill => {
-                    if (skill.isDismount) {
-                        const key = `${userId}-${skill.name}`; // Key by user and dismount skill name
-                        if (!userStickData[key]) {
-                            userStickData[key] = { userName, skillName: skill.name, totalDismounts: 0, stuckDismounts: 0 };
-                        }
-                        
-                        userStickData[key].totalDismounts++;
-                        if (submission.stuckDismount) {
-                            userStickData[key].stuckDismounts++;
-                        }
+                const dismountSkills = submission.skills.filter(s => s.isDismount);
+                if (dismountSkills.length === 0) continue;
+
+                const wasStuck = submission.stuckDismount || false;
+
+                dismountSkills.forEach(skill => {
+                    const key = `${userId}-${skill.name}`;
+                    if (!userStickData[key]) {
+                        userStickData[key] = { userName, skillName: skill.name, totalDismounts: 0, stuckDismounts: 0 };
+                    }
+                    userStickData[key].totalDismounts++;
+                    if (wasStuck) {
+                        userStickData[key].stuckDismounts++;
                     }
                 });
             }
@@ -581,3 +583,5 @@ export function DeductionBreakdownDialog({
     </Dialog>
   );
 }
+
+    
