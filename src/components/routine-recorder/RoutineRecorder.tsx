@@ -93,13 +93,21 @@ export function RoutineRecorder() {
   const handleDownload = async () => {
     try {
       const base64 = await downloadDataAsExcel(data);
-      const link = document.createElement('a');
-      link.href = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${base64}`;
-      link.download = 'RoutineRecorder_Data.xlsx';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      if (base64) {
+        const link = document.createElement('a');
+        link.href = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${base64}`;
+        link.download = 'RoutineRecorder_Data.xlsx';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+         toast({
+            title: 'No Data to Download',
+            description: 'There is no data to export.',
+        });
+      }
     } catch (error) {
+      console.error('Download failed', error);
       toast({
         variant: 'destructive',
         title: 'Download Failed',
