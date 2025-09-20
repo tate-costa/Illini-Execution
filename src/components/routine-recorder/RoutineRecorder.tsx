@@ -2,7 +2,8 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import useLocalStorage from '@/hooks/use-local-storage';
+import { db } from '@/lib/firebase';
+import { doc, getDoc, setDoc, onSnapshot, collection, query } from 'firebase/firestore';
 import { USERS } from '@/lib/constants';
 import type { AppData, Submission, UserData, UserRoutines } from '@/lib/types';
 import { UserSelector } from './UserSelector';
@@ -18,7 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 
 
 export function RoutineRecorder() {
-  const [data, setData] = useLocalStorage<AppData>('routine-recorder-data', {});
+  const [data, setData] = useState<AppData>({});
   const [selectedUserId, setSelectedUserId] = useState<string | undefined>();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
@@ -28,7 +29,32 @@ export function RoutineRecorder() {
 
   useEffect(() => {
     setIsClient(true);
+    // Set up a real-time listener on the entire dataset
+    const q = query(collection(db, "userData"));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const appData: AppData = {};
+        querySnapshot.forEach((doc) => {
+            appData[doc.id] = doc.data() as UserData;
+        });
+        setData(appData);
+    });
+
+    return () => unsubscribe();
   }, []);
+
+  const updateFirestore = async (userId: string, newUserData: UserData) => {
+    try {
+        const userDocRef = doc(db, 'userData', userId);
+        await setDoc(userDocRef, newUserData);
+    } catch (error) {
+        console.error("Error updating document: ", error);
+        toast({
+            variant: 'destructive',
+            title: 'Sync Error',
+            description: 'Could not save changes to the database.',
+        });
+    }
+  };
   
   const selectedUserName = useMemo(() => {
     return USERS.find(user => user.id === selectedUserId)?.name;
@@ -44,61 +70,51 @@ export function RoutineRecorder() {
     return Object.values(currentUserData.routines).some(routine => routine.length > 0);
   }, [currentUserData]);
 
-  const handleUserChange = (userId: string) => {
+  const handleUserChange = async (userId: string) => {
     setSelectedUserId(userId);
     const newName = USERS.find(u => u.id === userId)?.name;
     
+    // Check if user exists in Firestore, if not, create them.
     if (!data[userId] && newName) {
-      setData({
-        ...data,
-        [userId]: { ...initialUserData, userName: newName },
-      });
+        const newUser: UserData = { ...initialUserData, userName: newName };
+        await updateFirestore(userId, newUser);
     }
   };
 
   const handleSaveRoutine = (event: string, routines: UserRoutines) => {
-    if (!selectedUserId || !selectedUserName) return;
-    setData({
-        ...data,
-        [selectedUserId]: {
-            ...data[selectedUserId],
-            routines: routines,
-            userName: selectedUserName,
-        }
-    });
+    if (!selectedUserId || !currentUserData) return;
+    const updatedUserData = {
+        ...currentUserData,
+        routines: routines
+    };
+    updateFirestore(selectedUserId, updatedUserData);
     setIsEditOpen(false);
   };
 
   const handleSaveSubmission = (submission: Omit<Submission, 'id'>) => {
-    if (!selectedUserId) return;
+    if (!selectedUserId || !currentUserData) return;
     const newSubmission: Submission = {
         ...submission,
         id: new Date().toISOString() + Math.random(),
     };
 
-    const newSubmissions = [newSubmission, ...(currentUserData?.submissions || [])];
-    setData({
-        ...data,
-        [selectedUserId]: {
-            ...data[selectedUserId],
-            submissions: newSubmissions,
-            userName: selectedUserName || data[selectedUserId].userName,
-        }
-    });
+    const newSubmissions = [newSubmission, ...(currentUserData.submissions || [])];
+    const updatedUserData = {
+        ...currentUserData,
+        submissions: newSubmissions,
+    };
+    updateFirestore(selectedUserId, updatedUserData);
     setIsSubmitOpen(false);
   };
   
   const handleDeleteSubmission = (submissionId: string) => {
-    if (!selectedUserId) return;
-    const updatedSubmissions = currentUserData?.submissions.filter(sub => sub.id !== submissionId) || [];
-    setData({
-        ...data,
-        [selectedUserId]: {
-            ...data[selectedUserId],
-            submissions: updatedSubmissions,
-            userName: selectedUserName || data[selectedUserId].userName,
-        }
-    });
+    if (!selectedUserId || !currentUserData) return;
+    const updatedSubmissions = currentUserData.submissions.filter(sub => sub.id !== submissionId);
+    const updatedUserData = {
+        ...currentUserData,
+        submissions: updatedSubmissions
+    };
+    updateFirestore(selectedUserId, updatedUserData);
   };
   
   const handleDownload = async () => {
