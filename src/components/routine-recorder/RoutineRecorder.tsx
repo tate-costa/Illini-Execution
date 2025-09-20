@@ -11,6 +11,9 @@ import { SubmitRoutineDialog } from './SubmitRoutineDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { SubmissionsTable } from './SubmissionsTable';
 import { DeductionBreakdownDialog } from './DeductionBreakdownDialog';
+import { Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { format } from 'date-fns';
 
 const initialUserData: Omit<UserData, 'userName'> = { routines: {}, submissions: [] };
 
@@ -86,16 +89,69 @@ export function RoutineRecorder() {
       setData(newData);
     }
   };
+  
+  const handleDownload = () => {
+    const wb = XLSX.utils.book_new();
+
+    // Submissions Sheet
+    const submissionsData: any[] = [];
+    Object.values(data).forEach(userData => {
+        userData.submissions.forEach(sub => {
+            sub.skills.forEach(skill => {
+                submissionsData.push({
+                    'User Name': userData.userName,
+                    'Event': sub.event,
+                    'Date': format(new Date(sub.timestamp), "yyyy-MM-dd HH:mm:ss"),
+                    'Skill': skill.name,
+                    'Value': skill.value,
+                    'Deduction': skill.deduction,
+                    'Routine Complete': sub.isComplete ? 'Yes' : 'No'
+                });
+            });
+        });
+    });
+    const submissionsWs = XLSX.utils.json_to_sheet(submissionsData);
+    XLSX.utils.book_append_sheet(wb, submissionsWs, "Submissions");
+    
+     // Routines Sheet
+    const routinesData: any[] = [];
+    Object.values(data).forEach(userData => {
+        Object.entries(userData.routines).forEach(([event, skills]) => {
+            skills.forEach(skill => {
+                routinesData.push({
+                    'User Name': userData.userName,
+                    'Event': event,
+                    'Skill': skill.name,
+                    'Value': skill.value,
+                });
+            });
+        });
+    });
+    const routinesWs = XLSX.utils.json_to_sheet(routinesData);
+    XLSX.utils.book_append_sheet(wb, routinesWs, "Routines");
+
+    XLSX.writeFile(wb, "RoutineRecorder_Data.xlsx");
+  };
 
   return (
     <div className="container mx-auto p-4 md:p-8">
-      <header className="text-center mb-8">
+      <header className="relative text-center mb-8">
         <h1 className="text-4xl font-headline font-bold text-primary">
           RoutineRecorder
         </h1>
         <p className="text-muted-foreground mt-2">
           Your personal gymnastics routine tracker and optimizer.
         </p>
+        <Button 
+          variant="outline" 
+          size="icon" 
+          onClick={handleDownload} 
+          className="absolute top-0 right-0"
+          disabled={Object.keys(data).length === 0}
+        >
+          <Download className="h-4 w-4" />
+          <span className="sr-only">Download Data</span>
+        </Button>
       </header>
       
       <Card className="max-w-4xl mx-auto shadow-lg">
