@@ -137,7 +137,7 @@ export function RoutineRecorder() {
     <div className="container mx-auto p-4 md:p-8">
       <header className="relative text-center mb-8">
         <h1 className="text-4xl font-headline font-bold text-primary">
-          RoutineRecorder
+          Illini Execution
         </h1>
         <p className="text-muted-foreground mt-2">
           Your personal gymnastics routine tracker and optimizer.

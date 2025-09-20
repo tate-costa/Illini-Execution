@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'RoutineRecorder',
+  title: 'Illini Execution',
   description: 'A gymnastics routine tracking application',
 };
 
