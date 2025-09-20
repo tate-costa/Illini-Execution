@@ -15,6 +15,7 @@ import { DeductionBreakdownDialog } from './DeductionBreakdownDialog';
 import { Download } from 'lucide-react';
 import { downloadDataAsExcel } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
+import { PasswordProtectDialog } from './PasswordProtectDialog';
 
 
 export function RoutineRecorder() {
@@ -24,6 +25,7 @@ export function RoutineRecorder() {
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
   const [isBreakdownOpen, setIsBreakdownOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -122,6 +124,14 @@ export function RoutineRecorder() {
       });
     }
   };
+
+  if (!isClient) {
+    return null; // or a loading spinner
+  }
+  
+  if (!isAuthenticated) {
+    return <PasswordProtectDialog isOpen={true} onAuthenticated={() => setIsAuthenticated(true)} />;
+  }
 
   return (
     <div className="container mx-auto p-4 md:p-8">
