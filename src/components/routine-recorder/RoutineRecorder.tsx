@@ -86,21 +86,23 @@ export function RoutineRecorder() {
     }
   };
 
-  const handleSaveRoutine = async (event: string, routine: UserRoutines) => {
+  const handleSaveRoutine = async (event: string, routines: UserRoutines) => {
     if (!selectedUserId || !selectedUserName) return;
 
     try {
         const userDocRef = doc(db, "users", selectedUserId);
-        await updateDoc(userDocRef, { routines: routine });
+        await updateDoc(userDocRef, { routines: routines });
 
-        setData(prevData => ({
-            ...prevData,
-            [selectedUserId]: {
-                ...prevData[selectedUserId],
-                routines: routine,
-                userName: selectedUserName,
-            }
-        }));
+        setData(prevData => {
+            const currentData = prevData[selectedUserId] || { ...initialUserData, userName: selectedUserName };
+            return {
+                ...prevData,
+                [selectedUserId]: {
+                    ...currentData,
+                    routines: routines,
+                }
+            };
+        });
         setIsEditOpen(false);
     } catch (error) {
         console.error("Error saving routines to Firestore:", error);
