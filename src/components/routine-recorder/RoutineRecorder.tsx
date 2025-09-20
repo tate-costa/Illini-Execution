@@ -1,8 +1,9 @@
 
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
-import useLocalStorage from '@/hooks/use-local-storage';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { doc, getDoc, setDoc, updateDoc, collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { USERS } from '@/lib/constants';
 import type { AppData, Submission, UserData, UserRoutines } from '@/lib/types';
 import { UserSelector } from './UserSelector';
@@ -19,7 +20,7 @@ import { PasswordProtectDialog } from './PasswordProtectDialog';
 
 
 export function RoutineRecorder() {
-  const [data, setData] = useLocalStorage<AppData>('routine-recorder-data', {});
+  const [data, setData] = useState<AppData>({});
   const [selectedUserId, setSelectedUserId] = useState<string | undefined>();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
@@ -32,6 +33,30 @@ export function RoutineRecorder() {
     setIsClient(true);
   }, []);
 
+  const fetchData = useCallback(async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, "users"));
+      const appData: AppData = {};
+      querySnapshot.forEach((doc) => {
+        appData[doc.id] = doc.data() as UserData;
+      });
+      setData(appData);
+    } catch (error) {
+      console.error("Error fetching data from Firestore:", error);
+      toast({
+        variant: "destructive",
+        title: "Failed to load data",
+        description: "Could not fetch data from the database. Please check your connection or Firebase setup.",
+      });
+    }
+  }, [toast]);
+  
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchData();
+    }
+  }, [isAuthenticated, fetchData]);
+  
   const selectedUserName = useMemo(() => {
     return USERS.find(user => user.id === selectedUserId)?.name;
   }, [selectedUserId]);
@@ -46,55 +71,102 @@ export function RoutineRecorder() {
     return Object.values(currentUserData.routines).some(routine => routine.length > 0);
   }, [currentUserData]);
 
-  const handleUserChange = (userId: string) => {
+  const handleUserChange = async (userId: string) => {
     setSelectedUserId(userId);
     const newName = USERS.find(u => u.id === userId)?.name;
-    // Ensure user data has a name
+    
     if (!data[userId] && newName) {
-      const newData = { ...data };
-      newData[userId] = { ...initialUserData, userName: newName };
-      setData(newData);
-    } else if (data[userId] && !data[userId].userName && newName) {
-      const newData = { ...data };
-      newData[userId].userName = newName;
-      setData(newData);
+      const newUser: UserData = { ...initialUserData, userName: newName };
+      try {
+        await setDoc(doc(db, "users", userId), newUser);
+        setData(prevData => ({ ...prevData, [userId]: newUser }));
+      } catch (error) {
+        console.error("Error creating user in Firestore:", error);
+      }
     }
   };
 
-  const handleSaveRoutine = (event: string, routine: UserRoutines) => {
+  const handleSaveRoutine = async (event: string, routine: UserRoutines) => {
     if (!selectedUserId || !selectedUserName) return;
-    const newData = { ...data };
-    if (!newData[selectedUserId]) {
-      newData[selectedUserId] = { ...initialUserData, userName: selectedUserName };
+
+    try {
+        const userDocRef = doc(db, "users", selectedUserId);
+        await updateDoc(userDocRef, { routines: routine });
+
+        setData(prevData => ({
+            ...prevData,
+            [selectedUserId]: {
+                ...prevData[selectedUserId],
+                routines: routine,
+                userName: selectedUserName,
+            }
+        }));
+        setIsEditOpen(false);
+    } catch (error) {
+        console.error("Error saving routines to Firestore:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Save Failed',
+            description: 'Could not save routines. Please try again.',
+        });
     }
-    newData[selectedUserId].routines = routine;
-    setData(newData);
-    setIsEditOpen(false);
   };
 
-  const handleSaveSubmission = (submission: Omit<Submission, 'id'>) => {
-    if (!selectedUserId || !selectedUserName) return;
+  const handleSaveSubmission = async (submission: Omit<Submission, 'id'>) => {
+    if (!selectedUserId) return;
     const newSubmission: Submission = {
         ...submission,
         id: new Date().toISOString() + Math.random(),
     };
-    const newData = { ...data };
-    if (!newData[selectedUserId]) {
-      newData[selectedUserId] = { ...initialUserData, userName: selectedUserName };
+
+    const newSubmissions = [newSubmission, ...(currentUserData?.submissions || [])];
+
+    try {
+        const userDocRef = doc(db, "users", selectedUserId);
+        await updateDoc(userDocRef, { submissions: newSubmissions });
+
+        setData(prevData => ({
+            ...prevData,
+            [selectedUserId]: {
+                ...prevData[selectedUserId],
+                submissions: newSubmissions,
+                userName: selectedUserName || prevData[selectedUserId]?.userName,
+            }
+        }));
+        setIsSubmitOpen(false);
+    } catch (error) {
+        console.error("Error saving submission to Firestore:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Submission Failed',
+            description: 'Could not save submission. Please try again.',
+        });
     }
-    newData[selectedUserId].submissions.unshift(newSubmission); // Add to beginning of array
-    setData(newData);
-    setIsSubmitOpen(false);
   };
   
-  const handleDeleteSubmission = (submissionId: string) => {
+  const handleDeleteSubmission = async (submissionId: string) => {
     if (!selectedUserId) return;
-    const newData = { ...data };
-    if (newData[selectedUserId]) {
-      newData[selectedUserId].submissions = newData[selectedUserId].submissions.filter(
-        (sub) => sub.id !== submissionId
-      );
-      setData(newData);
+    const updatedSubmissions = currentUserData?.submissions.filter(sub => sub.id !== submissionId) || [];
+    
+    try {
+        const userDocRef = doc(db, "users", selectedUserId);
+        await updateDoc(userDocRef, { submissions: updatedSubmissions });
+
+        setData(prevData => ({
+            ...prevData,
+            [selectedUserId]: {
+                ...prevData[selectedUserId],
+                submissions: updatedSubmissions,
+                userName: selectedUserName || prevData[selectedUserId]?.userName,
+            }
+        }));
+    } catch (error) {
+        console.error("Error deleting submission from Firestore:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Delete Failed',
+            description: 'Could not delete submission. Please try again.',
+        });
     }
   };
   
@@ -126,7 +198,11 @@ export function RoutineRecorder() {
   };
 
   if (!isClient) {
-    return null; // or a loading spinner
+    return (
+        <div className="flex justify-center items-center min-h-screen">
+          <div className="text-2xl font-semibold">Loading...</div>
+        </div>
+      );
   }
   
   if (!isAuthenticated) {
