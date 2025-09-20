@@ -140,12 +140,15 @@ export function DeductionBreakdownDialog({
 
             for (const submission of eventSubmissions) {
                 if (compareDismounts) {
-                    // Dismount is the 8th skill (index 7)
-                    const dismount = submission.skills.find(s => s.name.toLowerCase().includes('dismount') || submission.skills.indexOf(s) === 7);
-                    if (dismount && typeof dismount.deduction === 'number') {
+                    // Find a skill that is a dismount (either by name or position 8)
+                    const dismount = submission.skills.find((s, index) => 
+                        (s.name.toLowerCase().includes('dismount') || index === 7) && typeof s.deduction === 'number'
+                    );
+
+                    if (dismount) {
                         if (!userDeductions[userId]) userDeductions[userId] = { name: userName, deductions: [], skillName: dismount.name };
-                        userDeductions[userId].deductions.push(dismount.deduction);
-                        userDeductions[userId].skillName = dismount.name;
+                        userDeductions[userId].deductions.push(dismount.deduction as number);
+                        userDeductions[userId].skillName = dismount.name; // Update skill name to the one found
                     }
                 } else {
                     if (!selectedSkill) continue;
@@ -160,11 +163,12 @@ export function DeductionBreakdownDialog({
         }
         
         const comparisonAverages = Object.values(userDeductions).map(({name, deductions, skillName}) => {
+            if (deductions.length === 0) return null;
             const sum = deductions.reduce((a, b) => a + b, 0);
             const average = sum / deductions.length;
             const displayName = skillName ? `${name} (${skillName})` : name;
             return { name: displayName, averageDeduction: parseFloat(average.toFixed(2)) };
-        });
+        }).filter(item => item !== null) as { name: string, averageDeduction: number }[];
 
         return comparisonAverages.sort((a, b) => b.averageDeduction - a.averageDeduction);
     }
@@ -407,3 +411,5 @@ export function DeductionBreakdownDialog({
     </Dialog>
   );
 }
+
+    
