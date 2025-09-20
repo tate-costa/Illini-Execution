@@ -52,6 +52,7 @@ export async function downloadDataAsExcel(data: AppData): Promise<string> {
                   'Value': skill.value,
                   'Deduction': skill.deduction,
                   'Is Dismount': skill.isDismount ? 'Yes' : 'No',
+                  'Dismount Stuck': sub.stuckDismount ? 'Yes' : 'No',
                   'Routine Complete': sub.isComplete ? 'Yes' : 'No'
               });
           });

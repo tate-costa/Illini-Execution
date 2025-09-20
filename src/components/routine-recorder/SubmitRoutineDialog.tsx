@@ -34,6 +34,7 @@ import { getOptimizedDeductions } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Sparkles, Replace } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { Checkbox } from '../ui/checkbox';
 
 interface SubmitRoutineDialogProps {
   isOpen: boolean;
@@ -51,6 +52,7 @@ const skillSchema = z.object({
 
 const formSchema = z.object({
   skills: z.array(skillSchema),
+  stuckDismount: z.boolean().default(false).optional(),
 });
 
 export function SubmitRoutineDialog({
@@ -80,7 +82,7 @@ export function SubmitRoutineDialog({
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { skills: [] },
+    defaultValues: { skills: [], stuckDismount: false },
   });
 
   const { fields, replace, update } = useFieldArray({
@@ -89,6 +91,7 @@ export function SubmitRoutineDialog({
   });
   
   const resetRoutineToOriginal = (event: string | undefined) => {
+    form.reset({ skills: [], stuckDismount: false });
     if (event) {
       const routineSkills = userRoutines[event] || [];
       const skillCount = event === 'VT' ? 2 : 8;
@@ -192,6 +195,7 @@ export function SubmitRoutineDialog({
         timestamp: new Date().toISOString(),
         isComplete,
         skills: skillsToSave,
+        stuckDismount: values.stuckDismount,
     };
     onSave(submission);
     form.reset();
@@ -233,7 +237,7 @@ export function SubmitRoutineDialog({
             <div className="space-y-4">
               {fields.map((field, index) => (
                 <div key={field.id}>
-                  <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-center">
+                  <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 items-center">
                     <Label>{field.name}</Label>
                     <Input className="w-24" value={field.value} readOnly disabled placeholder="Value"/>
                     <Controller
@@ -264,7 +268,7 @@ export function SubmitRoutineDialog({
                         </div>
                       )}}
                     />
-                    {alternateSkills.length > 0 && (
+                    {alternateSkills.length > 0 ? (
                         <Popover>
                             <PopoverTrigger asChild>
                                 <Button type="button" variant="ghost" size="icon">
@@ -285,6 +289,24 @@ export function SubmitRoutineDialog({
                                 ))}
                             </PopoverContent>
                         </Popover>
+                    ) : ( <div className="w-10" />) /* Placeholder for alignment */ }
+                    {index === 7 && selectedEvent !== 'VT' && (
+                        <Controller
+                            control={form.control}
+                            name="stuckDismount"
+                            render={({ field }) => (
+                                <div className="flex items-center space-x-2">
+                                    <Checkbox
+                                        id={`stick-checkbox-${index}`}
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                    />
+                                    <Label htmlFor={`stick-checkbox-${index}`} className="text-sm font-normal">
+                                        Stick?
+                                    </Label>
+                                </div>
+                            )}
+                        />
                     )}
                   </div>
                   {optimizations[field.name] && (

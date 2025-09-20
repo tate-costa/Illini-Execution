@@ -22,6 +22,7 @@ export type Submission = {
   timestamp: string;
   isComplete: boolean;
   skills: SubmissionSkill[];
+  stuckDismount?: boolean;
 };
 
 export type UserData = {
