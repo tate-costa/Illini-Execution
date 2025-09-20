@@ -194,17 +194,13 @@ export function DeductionBreakdownDialog({
 
         return comparisonAverages.sort((a, b) => b.averageDeduction - a.averageDeduction);
     } else { // Sticks mode
-        const userStickData: Record<string, { userName: string, totalDismounts: number, stuckDismounts: number }> = {};
+        const userStickData: Record<string, { userName: string, skillName: string, totalDismounts: number, stuckDismounts: number }> = {};
 
         for (const userId in allUsersData) {
             const userData = allUsersData[userId];
             const userName = userData.userName;
             if (!userName) continue;
             
-            if (!userStickData[userId]) {
-                userStickData[userId] = { userName, totalDismounts: 0, stuckDismounts: 0 };
-            }
-
             const userRoutineForEvent = userData.routines[selectedEvent] || [];
             const dismountSkillFromRoutine = userRoutineForEvent.length >= 8 ? userRoutineForEvent[7] : null;
 
@@ -217,30 +213,31 @@ export function DeductionBreakdownDialog({
             }
 
             for (const submission of eventSubmissions) {
-                let dismountInSubmission = false;
                 submission.skills.forEach(skill => {
                     const isDismountByName = skill.name.toLowerCase().includes('dismount');
                     const isEighthSkillInRoutine = dismountSkillFromRoutine && skill.name === dismountSkillFromRoutine.name;
+
                     if (isDismountByName || isEighthSkillInRoutine) {
-                        dismountInSubmission = true;
+                        const key = `${userId}-${skill.name}`; // Key by user and dismount skill name
+                        if (!userStickData[key]) {
+                            userStickData[key] = { userName, skillName: skill.name, totalDismounts: 0, stuckDismounts: 0 };
+                        }
+                        
+                        userStickData[key].totalDismounts++;
+                        if (submission.stuckDismount) {
+                            userStickData[key].stuckDismounts++;
+                        }
                     }
                 });
-
-                if (dismountInSubmission) {
-                    userStickData[userId].totalDismounts++;
-                    if (submission.stuckDismount) {
-                        userStickData[userId].stuckDismounts++;
-                    }
-                }
             }
         }
         
         const stickPercentages = Object.values(userStickData)
             .filter(data => data.totalDismounts > 0)
-            .map(({ userName, totalDismounts, stuckDismounts }) => {
+            .map(({ userName, skillName, totalDismounts, stuckDismounts }) => {
                 const percentage = (stuckDismounts / totalDismounts) * 100;
                 return {
-                    name: userName,
+                    name: `${userName} (${skillName})`,
                     stickPercentage: parseFloat(percentage.toFixed(1))
                 };
             });
