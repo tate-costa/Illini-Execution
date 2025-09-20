@@ -126,7 +126,7 @@ export function DeductionBreakdownDialog({
 
       return averages.sort((a, b) => b.averageDeduction - a.averageDeduction);
     } else { // Comparison mode
-        const userDeductions: Record<string, {name: string, deductions: number[]}> = {};
+        const userDeductions: Record<string, {name: string, deductions: number[], skillName?: string}> = {};
 
         for (const userId in allUsersData) {
             const userData = allUsersData[userId];
@@ -144,7 +144,7 @@ export function DeductionBreakdownDialog({
                         // Assume last skill is the dismount
                         const dismount = submission.skills[submission.skills.length - 1];
                         if (typeof dismount.deduction === 'number') {
-                            if (!userDeductions[userId]) userDeductions[userId] = { name: userName, deductions: [] };
+                            if (!userDeductions[userId]) userDeductions[userId] = { name: userName, deductions: [], skillName: dismount.name };
                             userDeductions[userId].deductions.push(dismount.deduction);
                         }
                     }
@@ -160,10 +160,11 @@ export function DeductionBreakdownDialog({
             }
         }
         
-        const comparisonAverages = Object.values(userDeductions).map(({name, deductions}) => {
+        const comparisonAverages = Object.values(userDeductions).map(({name, deductions, skillName}) => {
             const sum = deductions.reduce((a, b) => a + b, 0);
             const average = sum / deductions.length;
-            return { name, averageDeduction: parseFloat(average.toFixed(2)) };
+            const displayName = skillName ? `${name} (${skillName})` : name;
+            return { name: displayName, averageDeduction: parseFloat(average.toFixed(2)) };
         });
 
         return comparisonAverages.sort((a, b) => b.averageDeduction - a.averageDeduction);
@@ -267,6 +268,10 @@ export function DeductionBreakdownDialog({
                                 type="category"
                                 width={100}
                                 tick={{ fontSize: 12 }}
+                                style={{
+                                    overflow: 'visible',
+                                    whiteSpace: 'nowrap',
+                                  }}
                             />
                             <Tooltip
                                 contentStyle={{
@@ -370,8 +375,12 @@ export function DeductionBreakdownDialog({
                             <YAxis
                                 dataKey="name"
                                 type="category"
-                                width={100}
+                                width={150}
                                 tick={{ fontSize: 12 }}
+                                style={{
+                                    overflow: 'visible',
+                                    whiteSpace: 'nowrap',
+                                  }}
                             />
                             <Tooltip
                                 contentStyle={{
@@ -399,5 +408,3 @@ export function DeductionBreakdownDialog({
     </Dialog>
   );
 }
-
-    
