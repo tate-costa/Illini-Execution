@@ -1,9 +1,9 @@
 
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, onSnapshot, collection, query } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, collection, query, getDocs } from 'firebase/firestore';
 import { USERS } from '@/lib/constants';
 import type { AppData, Submission, UserData, UserRoutines } from '@/lib/types';
 import { UserSelector } from './UserSelector';
@@ -19,7 +19,8 @@ import { useToast } from '@/hooks/use-toast';
 
 
 export function RoutineRecorder() {
-  const [data, setData] = useState<AppData>({});
+  const [allUsersData, setAllUsersData] = useState<AppData>({});
+  const [currentUserData, setCurrentUserData] = useState<UserData | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | undefined>();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
@@ -29,23 +30,40 @@ export function RoutineRecorder() {
 
   useEffect(() => {
     setIsClient(true);
-    // Set up a real-time listener on the entire dataset
-    const q = query(collection(db, "userData"));
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const appData: AppData = {};
-        querySnapshot.forEach((doc) => {
-            appData[doc.id] = doc.data() as UserData;
-        });
-        setData(appData);
-    });
-
-    return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+
+    if (selectedUserId) {
+        const userDocRef = doc(db, 'userData', selectedUserId);
+        unsubscribe = onSnapshot(userDocRef, (doc) => {
+            if (doc.exists()) {
+                setCurrentUserData(doc.data() as UserData);
+            } else {
+                const newName = USERS.find(u => u.id === selectedUserId)?.name;
+                const newUser: UserData = { ...initialUserData, userName: newName || '' };
+                setCurrentUserData(newUser);
+                updateFirestore(selectedUserId, newUser);
+            }
+        });
+    } else {
+        setCurrentUserData(null);
+    }
+    
+    return () => {
+        if (unsubscribe) {
+            unsubscribe();
+        }
+    };
+
+  }, [selectedUserId]);
+
 
   const updateFirestore = async (userId: string, newUserData: UserData) => {
     try {
         const userDocRef = doc(db, 'userData', userId);
-        await setDoc(userDocRef, newUserData);
+        await setDoc(userDocRef, newUserData, { merge: true });
     } catch (error) {
         console.error("Error updating document: ", error);
         toast({
@@ -59,26 +77,14 @@ export function RoutineRecorder() {
   const selectedUserName = useMemo(() => {
     return USERS.find(user => user.id === selectedUserId)?.name;
   }, [selectedUserId]);
-  
-  const currentUserData = useMemo(() => {
-    if (!selectedUserId) return null;
-    return data[selectedUserId] || { ...initialUserData, userName: selectedUserName || '' };
-  }, [selectedUserId, data, selectedUserName]);
 
   const hasRoutines = useMemo(() => {
     if (!currentUserData) return false;
     return Object.values(currentUserData.routines).some(routine => routine.length > 0);
   }, [currentUserData]);
 
-  const handleUserChange = async (userId: string) => {
+  const handleUserChange = (userId: string) => {
     setSelectedUserId(userId);
-    const newName = USERS.find(u => u.id === userId)?.name;
-    
-    // Check if user exists in Firestore, if not, create them.
-    if (!data[userId] && newName) {
-        const newUser: UserData = { ...initialUserData, userName: newName };
-        await updateFirestore(userId, newUser);
-    }
   };
 
   const handleSaveRoutine = (event: string, routines: UserRoutines) => {
@@ -116,10 +122,26 @@ export function RoutineRecorder() {
     };
     updateFirestore(selectedUserId, updatedUserData);
   };
+
+  const fetchAllData = async () => {
+      const q = query(collection(db, "userData"));
+      const querySnapshot = await getDocs(q);
+      const appData: AppData = {};
+      querySnapshot.forEach((doc) => {
+          appData[doc.id] = doc.data() as UserData;
+      });
+      setAllUsersData(appData);
+  }
+  
+  const handleOpenBreakdown = async () => {
+    await fetchAllData();
+    setIsBreakdownOpen(true);
+  }
   
   const handleDownload = async () => {
     try {
-      const base64 = await downloadDataAsExcel(data);
+      await fetchAllData();
+      const base64 = await downloadDataAsExcel(allUsersData);
       if (base64) {
         const link = document.createElement('a');
         link.href = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${base64}`;
@@ -166,7 +188,7 @@ export function RoutineRecorder() {
           size="icon" 
           onClick={handleDownload} 
           className="absolute top-0 right-0"
-          disabled={!isClient || Object.keys(data).length === 0}
+          disabled={!isClient}
         >
           <Download className="h-4 w-4" />
           <span className="sr-only">Download Data</span>
@@ -200,7 +222,7 @@ export function RoutineRecorder() {
                 Submit Routine
               </Button>
                <Button
-                onClick={() => setIsBreakdownOpen(true)}
+                onClick={handleOpenBreakdown}
                 variant="outline"
                 className="w-full"
               >
@@ -237,7 +259,7 @@ export function RoutineRecorder() {
            <DeductionBreakdownDialog
             isOpen={isBreakdownOpen}
             onOpenChange={setIsBreakdownOpen}
-            allUsersData={data}
+            allUsersData={allUsersData}
             selectedUserId={selectedUserId}
             selectedUserName={selectedUserName}
           />
