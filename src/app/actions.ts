@@ -1,8 +1,9 @@
 'use server';
 
-import type { AppData } from '@/lib/types';
+import type { AppData, SubmissionSkill } from '@/lib/types';
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
+import { getOptimizedDeductions } from '@/ai/flows/optimize-routine-deductions';
 
 export async function downloadDataAsExcel(data: AppData): Promise<string> {
   const wb = XLSX.utils.book_new();
@@ -60,4 +61,14 @@ export async function downloadDataAsExcel(data: AppData): Promise<string> {
 
   const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
   return Buffer.from(buffer).toString('base64');
+}
+
+export async function getOptimizedDeductionsAction(skills: SubmissionSkill[], event: string): Promise<any> {
+  try {
+    const result = await getOptimizedDeductions({ skills, event });
+    return result;
+  } catch (error) {
+    console.error("Error in getOptimizedDeductionsAction:", error);
+    return { error: 'Failed to get AI suggestions.' };
+  }
 }

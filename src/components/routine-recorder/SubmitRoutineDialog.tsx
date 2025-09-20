@@ -30,8 +30,10 @@ import {
   } from "@/components/ui/popover"
 import type { UserRoutines, SubmissionSkill } from '@/lib/types';
 import { ScrollArea } from '../ui/scroll-area';
-import { Replace } from 'lucide-react';
+import { Replace, Sparkles } from 'lucide-react';
 import { Checkbox } from '../ui/checkbox';
+import { getOptimizedDeductionsAction } from '@/app/actions';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 
 interface SubmitRoutineDialogProps {
   isOpen: boolean;
@@ -59,6 +61,8 @@ export function SubmitRoutineDialog({
   onSave,
 }: SubmitRoutineDialogProps) {
   const [selectedEvent, setSelectedEvent] = useState<string | undefined>();
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<any | null>(null);
   
   const availableEvents = Object.keys(userRoutines).filter(key => userRoutines[key].length > 0);
 
@@ -78,13 +82,14 @@ export function SubmitRoutineDialog({
     defaultValues: { skills: [], stuckDismount: false },
   });
 
-  const { fields, replace, update } = useFieldArray({
+  const { fields, replace, update, getValues } = useFieldArray({
     control: form.control,
     name: "skills",
   });
   
   const resetRoutineToOriginal = (event: string | undefined) => {
     form.reset({ skills: [], stuckDismount: false });
+    setAiSuggestions(null);
     if (event) {
       const routineSkills = userRoutines[event] || [];
       const skillCount = event === 'VT' ? 2 : 8;
@@ -127,6 +132,37 @@ export function SubmitRoutineDialog({
         deduction: 'N/A', // Reset deduction on swap
     });
   };
+  
+  const handleOptimize = async () => {
+    if (!selectedEvent) return;
+
+    const currentSkills = getValues('skills').map((skill, index) => ({
+        ...skill,
+        isDismount: (index === 7 && selectedEvent !== 'VT') || skill.name.toLowerCase().includes('dismount'),
+    })).filter(s => s.deduction !== '' && s.deduction !== 'N/A')
+    .map(({ id, ...rest }) => ({
+        ...rest,
+        value: Number(rest.value),
+        deduction: Number(rest.deduction)
+    })) as SubmissionSkill[];
+    
+    if (currentSkills.length === 0) {
+      setAiSuggestions({ error: "Please enter at least one deduction to get suggestions."});
+      return;
+    }
+
+    setIsOptimizing(true);
+    setAiSuggestions(null);
+    try {
+        const result = await getOptimizedDeductionsAction(currentSkills, selectedEvent);
+        setAiSuggestions(result);
+    } catch (error) {
+        setAiSuggestions({ error: "An unexpected error occurred." });
+    } finally {
+        setIsOptimizing(false);
+    }
+  };
+
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     if (!selectedEvent) return;
@@ -274,6 +310,29 @@ export function SubmitRoutineDialog({
             </div>
             </ScrollArea>
           )}
+
+           {selectedEvent && (
+                <div className="space-y-4">
+                    <Button type="button" variant="outline" onClick={handleOptimize} disabled={isOptimizing} className="w-full">
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        {isOptimizing ? 'Analyzing...' : 'Optimize with AI'}
+                    </Button>
+                    {aiSuggestions && (
+                        <Alert variant={aiSuggestions.error ? 'destructive' : 'default'}>
+                            <AlertTitle>{aiSuggestions.error ? 'Error' : 'AI Suggestions'}</AlertTitle>
+                            <AlertDescription>
+                                {aiSuggestions.error ? (
+                                    <p>{aiSuggestions.error}</p>
+                                ) : (
+                                    <ul className="list-disc pl-5 space-y-1">
+                                        {aiSuggestions.suggestions?.map((s: string, i: number) => <li key={i}>{s}</li>)}
+                                    </ul>
+                                )}
+                            </AlertDescription>
+                        </Alert>
+                    )}
+                </div>
+           )}
 
           <DialogFooter>
             <Button type="submit" disabled={!selectedEvent}>Submit</Button>
