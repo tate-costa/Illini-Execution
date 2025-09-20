@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import useLocalStorage from '@/hooks/use-local-storage';
 import { USERS } from '@/lib/constants';
 import type { AppData, Submission, UserData, UserRoutines } from '@/lib/types';
@@ -22,7 +23,12 @@ export function RoutineRecorder() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
   const [isBreakdownOpen, setIsBreakdownOpen] = useState(false);
+  const [isClient, setIsClient] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const selectedUserName = useMemo(() => {
     return USERS.find(user => user.id === selectedUserId)?.name;
@@ -131,7 +137,7 @@ export function RoutineRecorder() {
           size="icon" 
           onClick={handleDownload} 
           className="absolute top-0 right-0"
-          disabled={Object.keys(data).length === 0}
+          disabled={!isClient || Object.keys(data).length === 0}
         >
           <Download className="h-4 w-4" />
           <span className="sr-only">Download Data</span>
