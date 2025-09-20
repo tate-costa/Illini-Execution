@@ -37,6 +37,7 @@ export async function getOptimizedDeductions(
 
 export async function downloadDataAsExcel(data: AppData): Promise<string> {
   const wb = XLSX.utils.book_new();
+  let hasData = false;
 
   // Submissions Sheet
   const submissionsData: any[] = [];
@@ -58,6 +59,7 @@ export async function downloadDataAsExcel(data: AppData): Promise<string> {
   if (submissionsData.length > 0) {
     const submissionsWs = XLSX.utils.json_to_sheet(submissionsData);
     XLSX.utils.book_append_sheet(wb, submissionsWs, "Submissions");
+    hasData = true;
   }
   
    // Routines Sheet
@@ -78,8 +80,12 @@ export async function downloadDataAsExcel(data: AppData): Promise<string> {
   if(routinesData.length > 0) {
     const routinesWs = XLSX.utils.json_to_sheet(routinesData);
     XLSX.utils.book_append_sheet(wb, routinesWs, "Routines");
+    hasData = true;
   }
 
+  if (!hasData) {
+    return '';
+  }
 
   const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
   return Buffer.from(buffer).toString('base64');

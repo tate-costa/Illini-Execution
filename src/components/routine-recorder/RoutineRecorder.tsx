@@ -103,7 +103,8 @@ export function RoutineRecorder() {
       } else {
          toast({
             title: 'No Data to Download',
-            description: 'There is no data to export.',
+            description: 'There is no routine or submission data to export.',
+            variant: 'default'
         });
       }
     } catch (error) {
