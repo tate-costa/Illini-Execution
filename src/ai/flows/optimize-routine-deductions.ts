@@ -1,10 +1,11 @@
+
 'use server';
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { SubmissionSkill } from '@/lib/types';
+import type { SubmissionSkill } from '@/lib/types';
 
-export const OptimizeDeductionsInputSchema = z.object({
+const OptimizeDeductionsInputSchema = z.object({
     skills: z.array(z.object({
         name: z.string(),
         value: z.union([z.number(), z.string()]),
@@ -14,17 +15,10 @@ export const OptimizeDeductionsInputSchema = z.object({
     event: z.string(),
 });
 
-export const OptimizeDeductionsOutputSchema = z.object({
+const OptimizeDeductionsOutputSchema = z.object({
     suggestions: z.array(z.string()).describe("A list of suggestions to improve the routine and reduce deductions."),
 });
 
-export async function getOptimizedDeductions(input: { skills: SubmissionSkill[], event: string }): Promise<z.infer<typeof OptimizeDeductionsOutputSchema>> {
-    const { output } = await optimizeDeductionsPrompt(input);
-    if (!output) {
-        throw new Error("No output from prompt");
-    }
-    return output;
-}
 
 const optimizeDeductionsPrompt = ai.definePrompt({
     name: 'optimizeDeductionsPrompt',
@@ -40,3 +34,11 @@ const optimizeDeductionsPrompt = ai.definePrompt({
     Based on these deductions, provide targeted advice. For example, if a skill has a high deduction, suggest drills or focus points to improve execution (e.g., "For the dismount, focus on keeping your chest up during the landing to avoid a step forward."). Do not suggest replacing skills.
     `,
 });
+
+export async function getOptimizedDeductions(input: { skills: SubmissionSkill[], event: string }): Promise<z.infer<typeof OptimizeDeductionsOutputSchema>> {
+    const { output } = await optimizeDeductionsPrompt(input);
+    if (!output) {
+        throw new Error("No output from prompt");
+    }
+    return output;
+}
