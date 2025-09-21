@@ -1,11 +1,9 @@
 
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
-import { db } from '@/lib/firebase';
-import { doc, onSnapshot, collection, query, getDocs, setDoc } from 'firebase/firestore';
-import { USERS } from '@/lib/constants';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import type { AppData, Submission, UserData, UserRoutines } from '@/lib/types';
+import { USERS } from '@/lib/constants';
 import { UserSelector } from './UserSelector';
 import { Button } from '@/components/ui/button';
 import { EditRoutinesDialog } from './EditRoutinesDialog';
@@ -27,41 +25,64 @@ export function RoutineRecorder() {
   const [isBreakdownOpen, setIsBreakdownOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  useEffect(() => {
-    if (!selectedUserId) {
-      setCurrentUserData(null);
-      return;
-    }
-
-    const userDocRef = doc(db, 'userData', selectedUserId);
-    const unsubscribe = onSnapshot(userDocRef, (doc) => {
-      if (doc.exists()) {
-        setCurrentUserData(doc.data() as UserData);
-      } else {
-        // If the document doesn't exist, it means this is a new user.
-        // We'll set local state, and the document will be created upon the first data save.
-        const newName = USERS.find((u) => u.id === selectedUserId)?.name;
+  const fetchUserData = useCallback(async (userId: string) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/data/${userId}`);
+      if (response.status === 404) {
+        const newName = USERS.find((u) => u.id === userId)?.name;
         const newUser: UserData = { ...initialUserData, userName: newName || '' };
         setCurrentUserData(newUser);
+        // Save the new user profile
+        await updateVercelBlob(userId, newUser);
+      } else if (response.ok) {
+        const data = await response.json();
+        setCurrentUserData(data);
+      } else {
+        throw new Error('Failed to fetch user data');
       }
-    });
-
-    // Cleanup subscription on component unmount or when selectedUserId changes
-    return () => unsubscribe();
-  }, [selectedUserId]);
-
-
-  const updateFirestore = async (userId: string, newUserData: UserData) => {
-    try {
-      const userDocRef = doc(db, 'userData', userId);
-      await setDoc(userDocRef, newUserData, { merge: true });
     } catch (error) {
-      console.error("Error updating document: ", error);
+      console.error("Error fetching user data:", error);
+      toast({
+        variant: 'destructive',
+        title: 'Loading Error',
+        description: 'Could not load user data.',
+      });
+      setCurrentUserData(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    if (selectedUserId) {
+      fetchUserData(selectedUserId);
+    } else {
+      setCurrentUserData(null);
+    }
+  }, [selectedUserId, fetchUserData]);
+
+
+  const updateVercelBlob = async (userId: string, newUserData: UserData) => {
+    try {
+      const response = await fetch(`/api/data/${userId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newUserData),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to save data');
+      }
+    } catch (error) {
+      console.error("Error updating blob: ", error);
       toast({
         variant: 'destructive',
         title: 'Sync Error',
@@ -90,7 +111,7 @@ export function RoutineRecorder() {
       routines: routines
     };
     setCurrentUserData(updatedUserData);
-    updateFirestore(selectedUserId, updatedUserData);
+    updateVercelBlob(selectedUserId, updatedUserData);
     setIsEditOpen(false);
   };
 
@@ -107,7 +128,7 @@ export function RoutineRecorder() {
       submissions: newSubmissions,
     };
     setCurrentUserData(updatedUserData);
-    updateFirestore(selectedUserId, updatedUserData);
+    updateVercelBlob(selectedUserId, updatedUserData);
     setIsSubmitOpen(false);
   };
   
@@ -119,17 +140,33 @@ export function RoutineRecorder() {
       submissions: updatedSubmissions
     };
     setCurrentUserData(updatedUserData);
-    updateFirestore(selectedUserId, updatedUserData);
+    updateVercelBlob(selectedUserId, updatedUserData);
   };
 
   const fetchAllData = async () => {
-    const q = query(collection(db, "userData"));
-    const querySnapshot = await getDocs(q);
+    // This is less efficient with blob storage, as it requires N requests.
+    // For the breakdown, we will fetch all users' data one by one.
+    // In a real-world scenario with many users, a different approach would be needed.
     const appData: AppData = {};
-    querySnapshot.forEach((doc) => {
-      appData[doc.id] = doc.data() as UserData;
-    });
-    setAllUsersData(appData);
+    setIsLoading(true);
+    try {
+      for (const user of USERS) {
+        const response = await fetch(`/api/data/${user.id}`);
+        if (response.ok) {
+          appData[user.id] = await response.json();
+        }
+      }
+      setAllUsersData(appData);
+    } catch (error) {
+       console.error("Error fetching all user data:", error);
+       toast({
+        variant: 'destructive',
+        title: 'Loading Error',
+        description: 'Could not load all user data for breakdown.',
+      });
+    } finally {
+        setIsLoading(false);
+    }
   }
   
   const handleOpenBreakdown = async () => {
@@ -187,7 +224,7 @@ export function RoutineRecorder() {
           size="icon" 
           onClick={handleDownload} 
           className="absolute top-0 right-0"
-          disabled={!isClient}
+          disabled={!isClient || isLoading}
         >
           <Download className="h-4 w-4" />
           <span className="sr-only">Download Data</span>
@@ -210,12 +247,13 @@ export function RoutineRecorder() {
               <Button
                 onClick={() => setIsEditOpen(true)}
                 className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
+                disabled={isLoading}
               >
                 Edit My Routines
               </Button>
               <Button
                 onClick={() => setIsSubmitOpen(true)}
-                disabled={!hasRoutines}
+                disabled={!hasRoutines || isLoading}
                 className="w-full"
               >
                 Submit Routine
@@ -224,11 +262,15 @@ export function RoutineRecorder() {
                 onClick={handleOpenBreakdown}
                 variant="outline"
                 className="w-full"
+                disabled={isLoading}
               >
                 See Breakdown
               </Button>
             </div>
           )}
+           {isLoading && selectedUserId && (
+                <div className="text-center text-muted-foreground">Loading {selectedUserName}'s data...</div>
+            )}
         </CardContent>
       </Card>
       
